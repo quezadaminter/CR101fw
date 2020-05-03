@@ -28,6 +28,11 @@ void CheckSwitchStates()
 			//if(_BV(SWITCH_STATES) == PRESSED)
 			//{
 			//}
+			tone_play(F(5));
+			_delay_ms(250);
+			tone_play(A(5));
+			_delay_ms(250);
+			tone_stop();
 		}
 		SWITCH_PAST_STATE = SWITCH_STATES;
 	}
