@@ -34,8 +34,9 @@ Change Activity:
 #ifndef _USI_TWI_SLAVE_H_
 #define _USI_TWI_SLAVE_H_
 
-
-
+#ifdef _cplusplus
+extern "C"
+#endif
 /********************************************************************************
 
                                     includes
@@ -93,5 +94,8 @@ void    (*usi_onReceiverPtr)(uint8_t);
 #endif
 
 
+#ifdef _cplusplus
+}
+#endif
 
 #endif  // ifndef _USI_TWI_SLAVE_H_

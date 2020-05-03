@@ -4,9 +4,16 @@
  * Created: 4/22/2020 9:47:39 AM
  *  Author: MQUEZADA
  */ 
+#include <avr/sfr_defs.h>
+#include <avr/power.h>
+#include <util/atomic.h>
 #include "Timer0.h"
 
-void ConfigureTimer0()
+Timer0 timer0;
+
+uint32_t ms = 0;
+
+void Timer0::begin()
 {
 	// Set timer 0 so it runs on Clear to Compare mode (CTC)
 	TCCR0A = _BV(WGM01);
@@ -34,7 +41,7 @@ void ConfigureTimer0()
 	
 }
 
-uint32_t millis()
+uint32_t Timer0::millis()
 {
 	uint32_t mil(0);
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
@@ -44,19 +51,19 @@ uint32_t millis()
 	return(mil);
 }
 
-void PauseTimer()
+void Timer0::PauseTimer()
 {
 	TIMSK0 &= ~(_BV(OCIE0A));
 	power_timer0_disable();
 }
 
-void ResumeTimer()
+void Timer0::ResumeTimer()
 {
 	power_timer0_enable();
 	TIMSK0 |= _BV(OCIE0A);
 }
 
-void ResetTimer()
+void Timer0::ResetTimer()
 {
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 	{
@@ -64,7 +71,7 @@ void ResetTimer()
 	}
 }
 
-void TimerRemove(uint32_t rem)
+void Timer0::TimerRemove(uint32_t rem)
 {
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 	{
@@ -79,7 +86,7 @@ void TimerRemove(uint32_t rem)
 	}
 }
 
-void TimerAdd(uint32_t add)
+void Timer0::TimerAdd(uint32_t add)
 {
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 	{
@@ -87,7 +94,7 @@ void TimerAdd(uint32_t add)
 	}
 }
 
-size_t micros()
+uint32_t Timer0::micros()
 {
 	// 64 scaler, 16 = F_CPU / 1,000,000 where F_CPU=16000000
 //	return(((timer0Overflow << 8) + TCNT0) * (64 / 16));

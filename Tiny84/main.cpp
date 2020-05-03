@@ -5,9 +5,17 @@
  * Author : MQUEZADA
  */ 
 
+#include <avr/interrupt.h>
+#include <util/atomic.h>
 #include <avr/io.h>
+#include <avr/sfr_defs.h>
+#include <avr/power.h>
+#include <stdint.h>
+#include <stdlib.h>
 #include "TinyWireS.h"
 #include "Timer0.h"
+#include "ADC.h"
+#include "PWM.h"
 
 #define I2C_SLAVE_ADDRESS 0x4 // the 7-bit address (remember to change this when adapting this example)
 
@@ -27,9 +35,10 @@ typedef enum
 #define GREEN_BIT 2
 #define RG_OFF_BIT 3
 
-#define ORANGE_PIN PINB1
-#define RED_GREEN_PIN PINB2
+#define ORANGE_PIN PINA7
+#define RED_GREEN_PIN PINB1
 #define WHITE_PIN PORTA5
+#define DATA_READY_PIN PORTB2
 
 // Enable the timer's clock source
 #define WHITE_PWM_ON (TCCR1B = (1<<CS11) | (1<<CS10))
@@ -45,6 +54,11 @@ volatile uint8_t i2c_regs[REG_RANGE] = { 0 };
 // Tracks the current register pointer position
 volatile uint8_t reg_position = 0;
 const uint8_t reg_size = sizeof(i2c_regs);
+
+#define DB 50
+uint16_t a,b,c,pa,pb,pc,avg;
+int16_t da, db, dc;
+int8_t ca, cb, cc;
 
 // Return the data obtained from the
 // operation selected by the register pointer.
@@ -99,131 +113,52 @@ void masterSentData(uint8_t howManyBytes) // handles a master write operation
 	}
 }
 
-//https://andreasrohner.at/posts/Electronics/How-to-set-the-PWM-frequency-for-the-Attiny84/
-void ConfigurePWM()
-{	
-	DDRA |= _BV(WHITE_PIN);
-	TCCR1A = (1<<COM1B1)|(1<<WGM10);  // mode #1, OC1B pin, Phase correct 8 bit, TOP = 255
-	TCCR1B = (1<<CS11) | (1<<CS10);  // div64 (any speed would do)
-	OCR1B = 59;          // set 23% duty cycle 0.23*256
-}
-
-void ConfigureADCSingleEnded()
+void sleep()
 {
-	// Select reference voltage. For this application
-	// we use the voltage at VCC as reference (REFSx)
-	ADMUX &= ~((_BV(REFS1)) | _BV(REFS0));
+	//Flash(4, 100, 10);
+	// Set pins to high impedance inputs
+	// to save power and hold the line
+	// so there are no fake button presses.
+	pulse.SetInput();
+	headUp.SetInput();
+	zeroG.SetInput();
+	flat.SetInput();
+	status.SetInput();
 
-	// Single ended input channel selection.
-	// Single ended input on channel ADC0 (MUXx)
-	ADMUX &= ~(_BV(MUX0) | _BV(MUX1) | _BV(MUX2));
-	//ADMUX |= _BV(MUX0) | _BV(MUX1) | _BV(MUX2);
+	ADCSRA &= ~_BV(ADEN);                   // ADC off
+	ACSR |= _BV(ACD);                       // Disable comparator
+	MCUCR |= _BV(BODS) | _BV(BODSE);          //turn off the brown-out detector
 
-	// Auto trigger source selection
-	// Free running mode
-	ADCSRB &= ~(_BV(ADTS2) | _BV(ADTS1) | _BV(ADTS0));
+	set_sleep_mode(SLEEP_MODE_PWR_DOWN);    // replaces above statement
+	sleep_enable();                         // Sets the Sleep Enable bit in the MCUCR Register (SE BIT)
+	sleep_mode();                            // sleep
+	sleep_disable();                        // Clear SE bit
 
-	// Right adjusted input (ADLAR)
-	ADCSRB &= ~(_BV(ADLAR));
-
-	// ADC auto trigger source selection
-	ADCSRA &= ~(_BV(ADATE));
-
-	// Disable the digital input buffer on the
-	// pins we are using for analog input since
-	// we won't be using the digital input
-	// functionality on these pins.
-	// The datasheet recommends this in order
-	// to save some extra power.
-	DIDR0 |= _BV(ADC0D);// | _BV(ADC6D);
-
-	// Enable the ADC
-	// Enable ADC interrupt
-	ADCSRA |= _BV(ADEN) | _BV(ADIE);
-
-	// Start conversion
-	ADCSRA |= _BV(ADSC);
-	//serOutln("GO ADC!");
-}
-
-
-
-ISR(ADC_vect)
-{
-	// Read low first to lock the registers
-	uint8_t low(ADCL);
-	uint16_t val = (ADCH << 8) | low;
-
-	//serOut("ADC!");
-
-	// Grab the mux bits
-	uint8_t mux = (ADMUX & 0x3F);
-	//serOut(ADMUX);
-	//serOut(mux);
-	switch(mux)
-	{
-		case(0):
-		break;
-		case(1):
-		break;
-		case(2):
-		break;
-		case(3):
-		break;
-		case(4):
-		break;
-		case(5):
-		break;
-		case(6):
-		adc6 = val;
-		//serOut("6: ");
-		//serOut(adc6);
-		// Clear the mux bits but leave
-		// the 2 high bits (refs)
-		//ADMUX &= 0xC0;
-		// Select channel 7
-		//ADMUX |= 7;
-		break;
-		case(7):
-		adc7 = val;
-		//serOut("7: ");serOut(adc7);
-		// Set to channel 6
-		//ADMUX &= 0xC0;
-		//ADMUX |= 6;
-		break;
-		default:
-		break;
-	}
-	//serOut(ADMUX);
-	// Trigger the next conversion
-	ADCSRA |= _BV(ADSC);
-}
-
-void SignalUpdate()
-{
-	DDRA |= _BV(PORTA7);
-	PORTA &= ~(_BV(PORTA7));
-	tws_delay(1);
-	DDRA &= ~(_BV(PORTA7)); 
-}
-
-uint16_t readChannel(uint8_t ch)
-{
-	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
-	{
-	   return(analogRead(ch));
-	}
+	InitializeIO();
+	sei();                                  // Enable interrupts
 }
 
 uint16_t readTheOne(uint8_t ch)
 {
 	PORTA |= _BV(PORTA0 + ch);//(ch, HIGH);
-	uint16_t d = readChannel(0);
+	uint16_t d = adc.Read();//readChannel(0);
 	PORTA &= ~(_BV(PORTA0 + ch));//(ch, LOW);
 	//Serial.print(d);
 	tws_delay(10);
 	return(d);
 }
+
+
+void SignalUpdate()
+{
+	// Let the master know there is data ready to be sent.
+	DDRB |= _BV(DATA_READY_PIN);
+	PORTB &= ~(_BV(DATA_READY_PIN));
+	tws_delay(1);
+	DDRB &= ~(_BV(DATA_READY_PIN)); 
+}
+
+
 
 void CheckScrollWheel()
 {
@@ -291,7 +226,14 @@ void CheckScrollWheel()
 int main(void)
 {
     /* Replace with your application code */
-	DDRA &= ~(_BV(PORTA7)); // Scroll interrupt
+	
+	timer0.begin();
+	adc.begin();
+	pwm.begin(WHITE_PIN);
+	
+	DDRA &= ~(_BV(DATA_READY_PIN)); // Scroll interrupt
+	DDRA |= _BV(ORANGE_PIN);
+	DDRB |= _BV(RED_GREEN_PIN);
 	
 	TinyWireS.begin(I2C_SLAVE_ADDRESS);
 	TinyWireS.onReceive(masterSentData);
@@ -304,11 +246,11 @@ int main(void)
 			case(REG_ORANGE_STATE):
 			   if (bit_is_set(i2c_regs[reg_position], ORANGE_BIT))
 			   {
-				   PORTB &= ~(_BV(ORANGE_PIN));
+				   PORTA &= ~(_BV(ORANGE_PIN));
 			   }
 			   else
 			   {
-				   PORTB |= _BV(ORANGE_PIN);
+				   PORTA |= _BV(ORANGE_PIN);
 			   }
 			   reg_position = REG_ID;
 			   break;
@@ -321,7 +263,7 @@ int main(void)
 			   else if(bit_is_set(i2c_regs[reg_position], GREEN_BIT))
 			   {
 				   DDRB |= _BV(RED_GREEN_PIN);
-				   PORTB |= _BV(i2c_regs[reg_position], RED_GREEN_PIN);
+				   PORTB |= _BV(RED_GREEN_PIN);
 			   }
 			   else
 			   {
@@ -350,6 +292,25 @@ int main(void)
 			   break;
 			case(REG_SLEEP):
 			   // Go to sleep!
+			   adc.Sleep();
+			   timer0.PauseTimer();
+			   pwm.Sleep();
+			  
+			   // Set interrupt pin to listen
+			   MCUCR |= _BV(ISC01); // Falling edge triggers INT0.
+	           GIMSK |= _BV(INT0); // Enable INT0 interrupt
+			   
+	           //GIMSK |= _BV(PCIE); // Enable Pin change interrupts
+	           // Monitor the zeroG pin to wake us up.
+	           //PCMSK |= _BV(zeroG.Nip) | _BV(flat.Nip);
+			   
+			   // Set to wake on interrupt.
+			   // Sleep.
+			   //power_all_disable();
+			   // Wake up...
+			   // Disable interrupt, tell master we are awake!
+			   GIMSK &= ~(_BV(INT0));
+			   SignalUpdate();
 			   break;
 		}
     }

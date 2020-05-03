@@ -9,8 +9,23 @@
 #ifndef TIMER0_H_
 #define TIMER0_H_
 
+#include <stdint.h>
 
-uint32_t millis();
+class Timer0
+{
+	public:
+	   void begin();
+       uint32_t millis();
+	   void PauseTimer();
+	   void ResumeTimer();
+	   void ResetTimer();
+	   void TimerRemove(uint32_t rem);
+	   void TimerAdd(uint32_t add);
+	   uint32_t micros(); // As a fraction of the millis!
+	   
+	private:
+};
 
+extern Timer0 timer0;
 
 #endif /* TIMER0_H_ */

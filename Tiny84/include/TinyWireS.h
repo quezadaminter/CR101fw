@@ -37,7 +37,9 @@
 #define TinyWireS_h
 
 #include <inttypes.h>
+//   #include "usiTwiSlave.h"
 
+#define TWI_RX_BUFFER_SIZE  ( 32 )
 class USI_TWI_S
 {
   private:

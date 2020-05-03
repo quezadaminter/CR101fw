@@ -85,8 +85,8 @@ void TinyWireS_stop_check()
 void tws_delay(unsigned long ms)
 {
     //uint16_t start = (uint16_t)micros();
-    uint16_t endus = (uint16_t)micros();
-    size_t endms   = (uint16_t)millis() + ms;
+    uint16_t endus = (uint16_t)timer0.micros();
+    uint32_t endms   = (uint16_t)timer0.millis() + ms;
     while (ms > 0)
     {
         TinyWireS_stop_check();
@@ -95,7 +95,7 @@ void tws_delay(unsigned long ms)
             //ms--;
             //start += 1000;
         //}
-        if(millis() >= endms && micros() >= endus)
+        if(timer0.millis() >= endms && timer0.micros() >= endus)
 		{
 			break;
 		}
