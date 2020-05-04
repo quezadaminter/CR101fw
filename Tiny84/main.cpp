@@ -16,40 +16,31 @@
 #include "Timer0.h"
 #include "ADC.h"
 #include "PWM.h"
-
-#define I2C_SLAVE_ADDRESS 0x4 // the 7-bit address (remember to change this when adapting this example)
-
-typedef enum
-{
-	REG_ID,
-	REG_ORANGE_STATE,
-	REG_RED_GREEN_STATE,
-	REG_WHITE_PWM_VALUE,
-	REG_SCROLL_CLICKS,
-	REG_SLEEP,
-	REG_RANGE
-} Registers;
-
-#define ORANGE_BIT 0
-#define RED_BIT 1
-#define GREEN_BIT 2
-#define RG_OFF_BIT 3
+#include "Registers.h"
 
 #define ORANGE_PIN PINA7
 #define RED_GREEN_PIN PINB1
 #define WHITE_PIN PORTA5
 #define DATA_READY_PIN PORTB2
 
+#define DATA_READY_INPUT PORTB &= ~(_BV(DATA_READY_PIN)); DDRB &= ~(_BV(DATA_READY_PIN));
+#define DATA_READY_OUTPUT PORTB &= ~(_BV(DATA_READY_PIN)); DDRB |= _BV(DATA_READY_PIN);
+
 // Enable the timer's clock source
 #define WHITE_PWM_ON (TCCR1B = (1<<CS11) | (1<<CS10))
 // Disable the timer's clock source
-#define WHITE_PWM_OFF (TCCR1B = (0<<CS12) | (0<<CS11) | (0<<CS10))
+#define WHITE_PWM_OFF TCCR1B = (0<<CS12) | (0<<CS11) | (0<<CS10); PORTA &= ~(_BV(WHITE_PIN));
+#define WHITE_PWM_FULL TCCR1B = (0<<CS12) | (0<<CS11) | (0<<CS10); PORTA |= _BV(WHITE_PIN);
 
-volatile uint8_t whitePWMValue = 0;
+uint32_t now = 0;
+
+//uint8_t whitePWMValue = 0;
+uint32_t whitePWMStep = 0;
+uint32_t whiteLEDHold = 0;
 volatile uint8_t oRGState = 0;
 volatile int8_t scrollClicks = 0;
 
-volatile uint8_t i2c_regs[REG_RANGE] = { 0 };
+volatile uint8_t i2c_regs[T84_REG_RANGE] = { 0 };
 
 // Tracks the current register pointer position
 volatile uint8_t reg_position = 0;
@@ -65,10 +56,10 @@ int8_t ca, cb, cc;
 void masterWantsData() // handles a master read operation:: requestFrom()
 {
 	TinyWireS.send(i2c_regs[reg_position]);
-	if(reg_position == REG_SCROLL_CLICKS)
+	if(reg_position == T84_REG_SCROLL_CLICKS)
 	{
 		// Sent the scroll clicks, clear them
-		i2c_regs[REG_SCROLL_CLICKS] = 0;
+		i2c_regs[T84_REG_SCROLL_CLICKS] = 0;
 	}
 	// Increment the reg position on each read, and loop back to zero
 	reg_position++;
@@ -115,27 +106,27 @@ void masterSentData(uint8_t howManyBytes) // handles a master write operation
 
 void sleep()
 {
-	//Flash(4, 100, 10);
-	// Set pins to high impedance inputs
-	// to save power and hold the line
-	// so there are no fake button presses.
-	pulse.SetInput();
-	headUp.SetInput();
-	zeroG.SetInput();
-	flat.SetInput();
-	status.SetInput();
-
-	ADCSRA &= ~_BV(ADEN);                   // ADC off
-	ACSR |= _BV(ACD);                       // Disable comparator
-	MCUCR |= _BV(BODS) | _BV(BODSE);          //turn off the brown-out detector
-
-	set_sleep_mode(SLEEP_MODE_PWR_DOWN);    // replaces above statement
-	sleep_enable();                         // Sets the Sleep Enable bit in the MCUCR Register (SE BIT)
-	sleep_mode();                            // sleep
-	sleep_disable();                        // Clear SE bit
-
-	InitializeIO();
-	sei();                                  // Enable interrupts
+	////Flash(4, 100, 10);
+	//// Set pins to high impedance inputs
+	//// to save power and hold the line
+	//// so there are no fake button presses.
+	//pulse.SetInput();
+	//headUp.SetInput();
+	//zeroG.SetInput();
+	//flat.SetInput();
+	//status.SetInput();
+//
+	//ADCSRA &= ~_BV(ADEN);                   // ADC off
+	//ACSR |= _BV(ACD);                       // Disable comparator
+	//MCUCR |= _BV(BODS) | _BV(BODSE);          //turn off the brown-out detector
+//
+	//set_sleep_mode(SLEEP_MODE_PWR_DOWN);    // replaces above statement
+	//sleep_enable();                         // Sets the Sleep Enable bit in the MCUCR Register (SE BIT)
+	//sleep_mode();                            // sleep
+	//sleep_disable();                        // Clear SE bit
+//
+	//InitializeIO();
+	//sei();                                  // Enable interrupts
 }
 
 uint16_t readTheOne(uint8_t ch)
@@ -148,17 +139,53 @@ uint16_t readTheOne(uint8_t ch)
 	return(d);
 }
 
-
 void SignalUpdate()
 {
 	// Let the master know there is data ready to be sent.
 	DDRB |= _BV(DATA_READY_PIN);
 	PORTB &= ~(_BV(DATA_READY_PIN));
 	tws_delay(1);
-	DDRB &= ~(_BV(DATA_READY_PIN)); 
+	PORTB |= _BV(DATA_READY_PIN);
 }
 
-
+void CheckWhiteLEDLevel(uint32_t now)
+{
+	uint8_t delta = i2c_regs[T84_REG_WHITE_PWM_VALUE] - OCR1B;
+	if(delta == 0)
+	{
+		// Reached the target.
+		if(i2c_regs[T84_REG_WHITE_PWM_VALUE] == 0)
+		{
+			// At zero turn it off.
+			WHITE_PWM_OFF;
+		}
+		else
+		{
+			// At full...
+	       if(whiteLEDHold < now)
+		   {
+			  // Hold the lights on for 5 seconds...
+			  WHITE_PWM_FULL;
+			  whiteLEDHold = now + 5000;
+		   }
+		   else
+		   {
+			   // ... then fade them off.
+			   i2c_regs[T84_REG_WHITE_PWM_VALUE] = 0;
+		   }
+		}
+	}
+	else
+	{
+		// Move the brightness one step at a time
+		// at a rate of 256 steps per 2048 milliseconds.
+		if(now > whitePWMStep)
+		{
+		   OCR1B += (delta > 0 ? 1 : -1);
+		   whitePWMStep = now + 8;
+		}
+	}
+}
 
 void CheckScrollWheel()
 {
@@ -207,7 +234,7 @@ void CheckScrollWheel()
 		(ca == 1  && cb == -1 && cc == 0) ||
 		(ca == -1 && cb == 0  && cc == 1))
 		{
-			i2c_regs[REG_SCROLL_CLICKS] += 1;
+			i2c_regs[T84_REG_SCROLL_CLICKS] += 1;
 			SignalUpdate();
 			//Serial.print("CW:  ");Serial.print(a);Serial.print(DELIM);Serial.print(b);Serial.print(DELIM);Serial.println(c);
 		}
@@ -215,7 +242,7 @@ void CheckScrollWheel()
 		(ca == -1 && cb == 1  && cc == 0) ||
 		(ca == 0  && cb == -1 && cc == 1))
 		{
-			i2c_regs[REG_SCROLL_CLICKS] -= 1;
+			i2c_regs[T84_REG_SCROLL_CLICKS] -= 1;
 			SignalUpdate();
 			//Serial.print("CCW: ");Serial.print(a);Serial.print(DELIM);Serial.print(b);Serial.print(DELIM);Serial.println(c);
 		}
@@ -231,20 +258,25 @@ int main(void)
 	adc.begin();
 	pwm.begin(WHITE_PIN);
 	
-	DDRA &= ~(_BV(DATA_READY_PIN)); // Scroll interrupt
+	DATA_READY_INPUT;
 	DDRA |= _BV(ORANGE_PIN);
 	DDRB |= _BV(RED_GREEN_PIN);
-	
-	TinyWireS.begin(I2C_SLAVE_ADDRESS);
+
+    // Set high
+    DATA_READY_OUTPUT;
+	PORTB |= _BV(DATA_READY_PIN);
+		
+	TinyWireS.begin(T84_I2C_SLAVE_ADDRESS);
 	TinyWireS.onReceive(masterSentData);
 	TinyWireS.onRequest(masterWantsData);
     while (1) 
     {
+		now = timer0.millis();
 		TinyWireS_stop_check();// Check for a stop condition here.
 		switch(reg_position)
 		{
-			case(REG_ORANGE_STATE):
-			   if (bit_is_set(i2c_regs[reg_position], ORANGE_BIT))
+			case(T84_REG_ORANGE_STATE):
+			   if (bit_is_set(i2c_regs[reg_position], T84_ORANGE_BIT))
 			   {
 				   PORTA &= ~(_BV(ORANGE_PIN));
 			   }
@@ -252,15 +284,15 @@ int main(void)
 			   {
 				   PORTA |= _BV(ORANGE_PIN);
 			   }
-			   reg_position = REG_ID;
+			   reg_position = T84_REG_ID;
 			   break;
-			case(REG_RED_GREEN_STATE):
-			   if(bit_is_set(i2c_regs[reg_position], RED_BIT))
+			case(T84_REG_RED_GREEN_STATE):
+			   if(bit_is_set(i2c_regs[reg_position], T84_RED_BIT))
 			   {
 				   DDRB |= _BV(RED_GREEN_PIN);
 				   PORTB &= ~(_BV(RED_GREEN_PIN));
 			   }
-			   else if(bit_is_set(i2c_regs[reg_position], GREEN_BIT))
+			   else if(bit_is_set(i2c_regs[reg_position], T84_GREEN_BIT))
 			   {
 				   DDRB |= _BV(RED_GREEN_PIN);
 				   PORTB |= _BV(RED_GREEN_PIN);
@@ -270,27 +302,25 @@ int main(void)
 				   PORTB &= ~(_BV(RED_GREEN_PIN));
 				   DDRB &= ~(_BV(RED_GREEN_PIN));
 			   }
-			   reg_position = REG_ID;
+			   reg_position = T84_REG_ID;
 			   break;
-			case(REG_WHITE_PWM_VALUE):
-			   if (i2c_regs[reg_position] == 0)
-			   {
-				   WHITE_PWM_OFF;
-				   PORTA &= ~(_BV(WHITE_PIN));
-			   }
-			   else if(i2c_regs[reg_position] == 255)
-			   {
-				   WHITE_PWM_OFF;
-				   PORTA |= _BV(WHITE_PIN);
-			   }
-			   else
-			   {
-				   OCR1B = i2c_regs[reg_position];
-				   WHITE_PWM_ON;
-			   }
-			   reg_position = REG_ID;
+			case(T84_REG_WHITE_PWM_VALUE):
+			   //if (i2c_regs[reg_position] == 0)
+			   //{
+				   //WHITE_PWM_OFF;
+			   //}
+			   //else if(i2c_regs[reg_position] == 255)
+			   //{
+				   //WHITE_PWM_FULL;
+			   //}
+			   //else
+			   //{
+				   //OCR1B = i2c_regs[reg_position];
+				   //WHITE_PWM_ON;
+			   //}
+			   //reg_position = T84_REG_ID;
 			   break;
-			case(REG_SLEEP):
+			case(T84_REG_SLEEP):
 			   // Go to sleep!
 			   adc.Sleep();
 			   timer0.PauseTimer();
@@ -313,6 +343,8 @@ int main(void)
 			   SignalUpdate();
 			   break;
 		}
+		
+		CheckWhiteLEDLevel(now);
     }
 }
 

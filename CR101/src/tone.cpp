@@ -7,6 +7,10 @@
  */ 
 #include "nvmctrl_basic.h"
 #include "tone.h"
+#include "tc16.h"
+
+#define SimpleFIFO_NONVOLATILE
+#include "SimpleFIFO.h"
 
 #define	BUZZER_PIN	PIND6
 
@@ -17,7 +21,20 @@
 #define	N_256	(_BV(CS02))
 #define	N_1024	(_BV(CS02)|_BV(CS00))
 
+class queuedNote
+{
+	public:
+	   queuedNote(){}
+	   queuedNote(uint8_t n, uint8_t o, uint32_t l) :
+	      note(n), octave(o), length(l)
+ 	   {
+ 	   }
+		uint8_t note = 0;
+		uint8_t octave = 0;
+		uint32_t length = 0;
+};
 
+SimpleFIFO<queuedNote, 10> noteQueue;
 
 /*
  All calculations below are prepared for ATtiny13 default clock source (1.2MHz)
@@ -142,24 +159,58 @@ const octave_t octaves[8] EEMEM = {
 	}
 };
 
-void tone_play(uint8_t note, uint8_t octave)
+bool tonePlaying = false;
+uint32_t noteEnd = 0;
+
+void tone_play(uint8_t note, uint8_t octave, uint32_t length)
+{
+	noteQueue.enqueue(queuedNote(note, octave, length));
+}
+
+void tone_play_next()
 {
 	//uint32_t ret;
+	queuedNote x = noteQueue.dequeue();
 	note_t val;
-	if (FLASH_0_is_eeprom_ready())
+	if (x.length > 0 && FLASH_0_is_eeprom_ready())
 	{
 		//FLASH_0_read_eeprom_block((uint16_t *)&octaves + sizeof(octave_t) * octave + sizeof(note_t) * note, &val, sizeof(note_t));
-		eeprom_adr_t address = ((unsigned int)&octaves + sizeof(octave_t) * octave + sizeof(note_t) * note);
+		eeprom_adr_t address = ((unsigned int)&octaves + sizeof(octave_t) * x.octave + sizeof(note_t) * x.note);
 		FLASH_0_read_eeprom_block(address, (uint8_t *)&val, sizeof(note_t));
 		//FLASH_0_read_eeprom_block((unsigned int *)(&octaves + sizeof(octave_t) * octave + sizeof(note_t) * note), (uint8_t *)&val, sizeof(note_t));
 		TCCR0B = (TCCR0B & ~((1<<CS02)|(1<<CS01)|(1<<CS00))) | val.N;
 		OCR0A = val.OCRxn - 1; // set the OCRnx
+		tonePlaying = true;
+		noteEnd = millis() + x.length;
+	}
+}
+
+void tone_update(uint32_t now)
+{
+	if(tonePlaying)
+	{
+		if(now > noteEnd)
+		{
+			if(noteQueue.count() > 0)
+			{
+				tone_play_next();
+			}
+			else
+			{
+			   tone_stop();
+			}
+		}
+	}
+	else if(noteQueue.count() > 0)
+	{
+		tone_play_next();
 	}
 }
 
 void tone_stop(void)
 {
 	TCCR0B &= ~((1<<CS02)|(1<<CS01)|(1<<CS00)); // stop the timer
+	tonePlaying = false;
 }
 
 void tone_setup()

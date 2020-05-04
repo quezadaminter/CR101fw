@@ -116,9 +116,9 @@ ISR(PCINT2_vect)
    changedbits = PIND ^ pcint2_history;
    pcint2_history = PIND;
    
-   if(changedbits & _BV(INT_TOUCH))
+   if(changedbits & _BV(T84_DATA_READY_INT))
    {
-	   if(bit_is_clear(PIND, INT_TOUCH))
+	   if(bit_is_clear(PIND, T84_DATA_READY_INT))
 	   {
 	      touchEventDetected = true;
 	   }
