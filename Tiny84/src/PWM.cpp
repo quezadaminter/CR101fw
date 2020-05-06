@@ -28,29 +28,45 @@ PWM pwm;
 //TCCR1B = (1<<CS02);   // 256 prescaler
 //OCR1A = 127;          // set 50% duty cycle (0.5*256)
 
-void PWM::begin(uint8_t pin)
+void PWM::begin(Pin &pin)
 {
 	//https://andreasrohner.at/posts/Electronics/How-to-set-the-PWM-frequency-for-the-Attiny84/
-	DDRA |= _BV(pin);
+	pin.SetOutput();
 	TCCR1A = (1<<COM1B1)|(1<<WGM10);  // mode #1, OC1B pin, Phase correct 8 bit, TOP = 255
 	TCCR1B = (1<<CS11) | (1<<CS10);  // div64 (any speed would do)
-//	OCR1B = 59;          // set 23% duty cycle 0.23*256
+	//OCR1B = 0;          // set 23% duty cycle 0.23*256
+	setLevel(pin, 0);
 }
 
-void PWM::setLevel(uint8_t pin, uint8_t dutyCycle)
+void PWM::setLevel(Pin &pin, uint8_t dutyCycle)
 {
+	OCR1B = dutyCycle;
 	if(dutyCycle == 0)
 	{
 		// timer off, set output low.
+		PWM_OFF;
+		pin.Set(LOW);
 	}
 	else if(dutyCycle == 255)
 	{
 		// timer off, set output high.
+		PWM_OFF;
+		pin.Set(HIGH);
 	}
 	else
 	{
-		OCR1B = dutyCycle;
+		PWM_ON;
 	}
+}
+
+void PWM::Start()
+{
+	PWM_ON;
+}
+
+void PWM::Stop()
+{
+	PWM_OFF;
 }
 
 void PWM::Sleep()
