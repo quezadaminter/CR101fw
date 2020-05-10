@@ -56,11 +56,11 @@ int8_t EXTERNAL_IRQ_0_init()
 	        (1 << PCIE2) | // Enable pin change interrupt 2
 	        (1 << PCIE3);  // Enable pin change interrupt 3
 
-	PCMSK3 = (1 << PCINT27); // Pin change enable mask 27
+	PCMSK3 = (1 << PCINT27) | // Pin change enable mask 27
+            (1 << PCINT26);  // Pin change enable mask 26
 
-	PCMSK2 = (1 << PCINT18) | // Pin change enable mask 18
-	         (1 << PCINT19) | // Pin change enable mask 19
-	         (1 << PCINT20) | // Pin change enable mask 20
+	PCMSK2 = (1 << PCINT17) | // Pin change enable mask 17
+	         (1 << PCINT20) |  // Pin change enable mask 20
 	         (1 << PCINT23);  // Pin change enable mask 23
 
 	PCMSK1 = (1 << PCINT8) |  // Pin change enable mask 8

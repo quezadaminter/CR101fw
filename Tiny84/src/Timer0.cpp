@@ -15,6 +15,7 @@ uint32_t ms = 0;
 
 void Timer0::begin()
 {
+	PRR &= ~(_BV(PRTIM0)); // Power up the timer0
 	// Set timer 0 so it runs on Clear to Compare mode (CTC)
 	TCCR0A = _BV(WGM01);
 
@@ -54,12 +55,12 @@ uint32_t Timer0::millis()
 void Timer0::PauseTimer()
 {
 	TIMSK0 &= ~(_BV(OCIE0A));
-	power_timer0_disable();
+	PRR |= _BV(PRTIM0);
 }
 
 void Timer0::ResumeTimer()
 {
-	power_timer0_enable();
+	PRR &= ~(_BV(PRTIM0));
 	TIMSK0 |= _BV(OCIE0A);
 }
 
@@ -92,6 +93,11 @@ void Timer0::TimerAdd(uint32_t add)
 	{
 		ms += add;
 	}
+}
+
+void Timer0::Sleep()
+{
+	PRR |= _BV(PRTIM0);
 }
 
 uint32_t Timer0::micros()

@@ -47,7 +47,7 @@ void EXTERNAL_IRQ_0_initialization(void)
 	    // <id> pad_pull_config
 	    // <PORT_PULL_OFF"> Off
 	    // <PORT_PULL_UP"> Pull-up
-	    PORT_PULL_OFF);
+	    PORT_PULL_UP);
 
 	// Set pin direction to input
 	PB1_set_dir(PORT_DIR_IN);
@@ -57,7 +57,7 @@ void EXTERNAL_IRQ_0_initialization(void)
 	    // <id> pad_pull_config
 	    // <PORT_PULL_OFF"> Off
 	    // <PORT_PULL_UP"> Pull-up
-	    PORT_PULL_OFF);
+	    PORT_PULL_UP);
 
 	// Set pin direction to input
 	PB2_set_dir(PORT_DIR_IN);
@@ -67,7 +67,7 @@ void EXTERNAL_IRQ_0_initialization(void)
 	    // <id> pad_pull_config
 	    // <PORT_PULL_OFF"> Off
 	    // <PORT_PULL_UP"> Pull-up
-	    PORT_PULL_OFF);
+	    PORT_PULL_UP);
 
 	// Set pin direction to input
 	PB3_set_dir(PORT_DIR_IN);
@@ -77,7 +77,7 @@ void EXTERNAL_IRQ_0_initialization(void)
 	    // <id> pad_pull_config
 	    // <PORT_PULL_OFF"> Off
 	    // <PORT_PULL_UP"> Pull-up
-	    PORT_PULL_OFF);
+	    PORT_PULL_UP);
 
 	// Set pin direction to input
 	PB4_set_dir(PORT_DIR_IN);
@@ -87,7 +87,7 @@ void EXTERNAL_IRQ_0_initialization(void)
 	    // <id> pad_pull_config
 	    // <PORT_PULL_OFF"> Off
 	    // <PORT_PULL_UP"> Pull-up
-	    PORT_PULL_OFF);
+	    PORT_PULL_UP);
 
 	// Set pin direction to input
 	PB5_set_dir(PORT_DIR_IN);
@@ -97,7 +97,7 @@ void EXTERNAL_IRQ_0_initialization(void)
 	    // <id> pad_pull_config
 	    // <PORT_PULL_OFF"> Off
 	    // <PORT_PULL_UP"> Pull-up
-	    PORT_PULL_OFF);
+	    PORT_PULL_UP);
 
 	// Set pin direction to input
 	PC0_set_dir(PORT_DIR_IN);
@@ -107,7 +107,7 @@ void EXTERNAL_IRQ_0_initialization(void)
 	    // <id> pad_pull_config
 	    // <PORT_PULL_OFF"> Off
 	    // <PORT_PULL_UP"> Pull-up
-	    PORT_PULL_OFF);
+	    PORT_PULL_UP);
 
 	// Set pin direction to input
 	PC2_set_dir(PORT_DIR_IN);
@@ -117,7 +117,7 @@ void EXTERNAL_IRQ_0_initialization(void)
 	    // <id> pad_pull_config
 	    // <PORT_PULL_OFF"> Off
 	    // <PORT_PULL_UP"> Pull-up
-	    PORT_PULL_OFF);
+	    PORT_PULL_UP);
 
 	// Set pin direction to input
 	PC3_set_dir(PORT_DIR_IN);
@@ -127,7 +127,7 @@ void EXTERNAL_IRQ_0_initialization(void)
 	    // <id> pad_pull_config
 	    // <PORT_PULL_OFF"> Off
 	    // <PORT_PULL_UP"> Pull-up
-	    PORT_PULL_OFF);
+	    PORT_PULL_UP);
 
 	// Set pin direction to input
 	PD2_set_dir(PORT_DIR_IN);
@@ -137,7 +137,7 @@ void EXTERNAL_IRQ_0_initialization(void)
 	    // <id> pad_pull_config
 	    // <PORT_PULL_OFF"> Off
 	    // <PORT_PULL_UP"> Pull-up
-	    PORT_PULL_OFF);
+	    PORT_PULL_UP);
 
 	// Set pin direction to input
 	PD3_set_dir(PORT_DIR_IN);
@@ -147,7 +147,7 @@ void EXTERNAL_IRQ_0_initialization(void)
 	    // <id> pad_pull_config
 	    // <PORT_PULL_OFF"> Off
 	    // <PORT_PULL_UP"> Pull-up
-	    PORT_PULL_OFF);
+	    PORT_PULL_UP);
 
 	// Set pin direction to input
 	PD4_set_dir(PORT_DIR_IN);
@@ -157,7 +157,7 @@ void EXTERNAL_IRQ_0_initialization(void)
 	    // <id> pad_pull_config
 	    // <PORT_PULL_OFF"> Off
 	    // <PORT_PULL_UP"> Pull-up
-	    PORT_PULL_OFF);
+	    PORT_PULL_UP);
 
 	// Set pin direction to input
 	PD7_set_dir(PORT_DIR_IN);
@@ -167,7 +167,7 @@ void EXTERNAL_IRQ_0_initialization(void)
 	    // <id> pad_pull_config
 	    // <PORT_PULL_OFF"> Off
 	    // <PORT_PULL_UP"> Pull-up
-	    PORT_PULL_OFF);
+	    PORT_PULL_UP);
 
 	// Set pin direction to input
 	PE2_set_dir(PORT_DIR_IN);
@@ -177,7 +177,7 @@ void EXTERNAL_IRQ_0_initialization(void)
 	    // <id> pad_pull_config
 	    // <PORT_PULL_OFF"> Off
 	    // <PORT_PULL_UP"> Pull-up
-	    PORT_PULL_OFF);
+	    PORT_PULL_UP);
 
 	EXTERNAL_IRQ_0_init();
 }

@@ -65,6 +65,8 @@ void ADC84::ConfigureADCSingleEnded()
 
 void ADC84::begin()
 {
+	
+	PRR &= ~(_BV(PRADC)); // Power up the ADC
 	ConfigureADCSingleEnded();
 }
 
@@ -84,7 +86,8 @@ uint16_t ADC84::Read()
 
 void ADC84::Sleep()
 {
-	
+	ADCSRA &= ~_BV(ADEN);                   // ADC off
+	PRR |= _BV(PRADC);
 }
 
 ISR(ADC_vect)

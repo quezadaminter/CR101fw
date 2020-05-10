@@ -82,7 +82,7 @@ int8_t TIMER_1_init()
 {
 
 	/* Enable TC1 */
-	PRR0 &= ~(1 << PRTIM1);
+	//PRR0 &= ~(1 << PRTIM1);
 
 	 TCCR1A = (0 << COM1A1) | (0 << COM1A0) /* Normal port operation, OCA disconnected */
 			 | (0 << COM1B1) | (0 << COM1B0) /* Normal port operation, OCB disconnected */
@@ -91,10 +91,12 @@ int8_t TIMER_1_init()
 	TCCR1B = (0 << WGM13) | (1 << WGM12)                /* TC16 Mode 4 CTC */
 	         | 0 << ICNC1                               /* Input Capture Noise Canceler: disabled */
 	         | 0 << ICES1                               /* Input Capture Edge Select: disabled */
-#if F_CPU == 8000000 // divice by 64 // effective clock rate is 125KHz
+#if F_CPU == 1000000 // divide by 8 // effective clock rate is 125KHz
+	         | (0 << CS12) | (1 << CS11) | (0 << CS10); /* IO clock divided by 8 */
+#elif F_CPU == 8000000 // divide by 64 // effective clock rate is 125KHz
 	         | (0 << CS12) | (1 << CS11) | (1 << CS10); /* IO clock divided by 64 */
-#elif F_CPU == 16000000 // divide by 256 // effective clock rate is 62500 Hz
-	         | (1 << CS12) | (0 << CS11) | (0 << CS10); /* IO clock divided by 256 */
+#elif F_CPU == 16000000 // divide by 64 // effective clock rate is 250000 Hz
+	         | (1 << CS12) | (0 << CS11) | (0 << CS10); /* IO clock divided by 8 */
 #else
 #error "Invalid F_CPU value."
 #endif
@@ -107,21 +109,30 @@ int8_t TIMER_1_init()
 	//		 | 0 << PSRASY /* Prescaler Reset Timer/Counter2: disabled */
 	//		 | 0 << PSRSYNC; /* Prescaler Reset: disabled */
 
+
+// Consider using this:
+// TOP(OCRnx) = F_CPU / ((desiredFrequency * 2 * N) - 1) // N is the clock prescaler value
+// desiredFreq = F_CPU / (2 * N * (1 + OCRnx))
+   // Set the compare value
+#if F_CPU == 1000000
+   	OCR1A = ((F_CPU / 8UL) / 1000UL) - 1; // Count to 125
+#elif F_CPU == 8000000
+   	OCR1A = ((F_CPU / 64UL) / 1000UL) - 1; // Count to 125
+#elif F_CPU == 16000000
+   	OCR1A = ((F_CPU / 64UL) / 1000UL) - 1; // Count to 250
+#else
+#error "Invalid F_CPU value."
+#endif
+
+   TCNT1 = 0;
+   TIFR1 = 0;
+
 	// Enable the interrupt
 	TIMSK1 = 0 << OCIE1B   /* Output Compare B Match Interrupt Enable: disabled */
 	         | 1 << OCIE1A /* Output Compare A Match Interrupt Enable: enabled */
 	         | 0 << ICIE1  /* Input Capture Interrupt Enable: disabled */
 	         | 0 << TOIE1; /* Overflow Interrupt Enable: disabled */
 
-// Consider using this:
-// TOP(OCRnx) = F_CPU / ((desiredFrequency * 2 * N) - 1) // N is the clock prescaler value
-// desiredFreq = F_CPU / (2 * N * (1 + OCRnx))
-   // Set the compare value
-#if F_CPU == 8000000UL
-   	OCR1A = ((F_CPU / 64UL) / 1000UL); // Count to 125
-#elif F_CPU == 16000000UL
-   	OCR1A = ((F_CPU / 256UL) / (1000UL * 0.5)); // Count to 125
-#endif
 	return 0;
 }
 

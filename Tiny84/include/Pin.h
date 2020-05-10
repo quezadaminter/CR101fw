@@ -38,13 +38,17 @@ class Pin
       {
          (hl == HIGH) ? *Port |= _BV(Nip) : *Port &= ~(_BV(Nip));
       }
+	  void Toggle()
+	  {
+		  *Port ^= _BV(Nip);
+	  }
       void Pullup(uint8_t hl)
       {
          Set(hl);
       }
       uint8_t Get()
       {
-         return(bit_is_set(*Pinp, Nip));
+         return(bit_is_set(*Pinp, Nip) ? HIGH : LOW);
       }
       uint8_t GetOutput()
       {

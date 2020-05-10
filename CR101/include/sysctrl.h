@@ -95,7 +95,7 @@ static inline void sleep_set_mode(uint8_t mode)
 static inline int8_t sysctrl_init()
 {
 	/* Set up system clock prescaler according to configuration */
-	protected_write_io((void *)&CLKPR, 1 << CLKPCE, (0 << CLKPS3) | (0 << CLKPS2) | (0 << CLKPS1) | (0 << CLKPS0));
+	//protected_write_io((void *)&CLKPR, 1 << CLKPCE, (0 << CLKPS3) | (0 << CLKPS2) | (0 << CLKPS1) | (0 << CLKPS0));
 
 	SMCR = (0 << SM2) | (0 << SM1) | (0 << SM0) | // Idle
 	       (0 << SE);

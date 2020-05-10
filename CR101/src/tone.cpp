@@ -8,6 +8,8 @@
 #include "nvmctrl_basic.h"
 #include "tone.h"
 #include "tc16.h"
+#include <util/delay.h>
+#include <avr/eeprom.h>
 
 #define SimpleFIFO_NONVOLATILE
 #include "SimpleFIFO.h"
@@ -162,9 +164,37 @@ const octave_t octaves[8] EEMEM = {
 bool tonePlaying = false;
 uint32_t noteEnd = 0;
 
+void tone_delay(uint32_t d)
+{
+   while(d > 0)
+   {
+      _delay_ms(1);
+      --d;
+   }
+}
+
 void tone_play(uint8_t note, uint8_t octave, uint32_t length)
 {
 	noteQueue.enqueue(queuedNote(note, octave, length));
+}
+
+void tone_play_block(uint8_t note, uint8_t octave, uint32_t length)
+{
+   //if (FLASH_0_is_eeprom_ready())
+	{
+	   note_t val;
+		//FLASH_0_read_eeprom_block((uint16_t *)&octaves + sizeof(octave_t) * octave + sizeof(note_t) * note, &val, sizeof(note_t));
+		//FLASH_0_read_eeprom_block((unsigned int *)(&octaves + sizeof(octave_t) * octave + sizeof(note_t) * note), (uint8_t *)&val, sizeof(note_t));
+		eeprom_adr_t address = ((unsigned int)&octaves + sizeof(octave_t) * octave + sizeof(note_t) * note);
+		//FLASH_0_read_eeprom_block(address, (uint8_t *)&val, sizeof(note_t));
+      eeprom_read_block(&val, &address, sizeof(note_t));
+		TCCR0B = (TCCR0B & ~((1<<CS02)|(1<<CS01)|(1<<CS00))) | val.N;
+		OCR0A = val.OCRxn - 1; // set the OCRnx
+		tonePlaying = true;
+      tone_delay(length);
+      tone_stop();
+      tonePlaying = false;
+	}
 }
 
 void tone_play_next()
@@ -172,12 +202,15 @@ void tone_play_next()
 	//uint32_t ret;
 	queuedNote x = noteQueue.dequeue();
 	note_t val;
-	if (x.length > 0 && FLASH_0_is_eeprom_ready())
+	if (x.length > 0)// && FLASH_0_is_eeprom_ready())
 	{
 		//FLASH_0_read_eeprom_block((uint16_t *)&octaves + sizeof(octave_t) * octave + sizeof(note_t) * note, &val, sizeof(note_t));
-		eeprom_adr_t address = ((unsigned int)&octaves + sizeof(octave_t) * x.octave + sizeof(note_t) * x.note);
-		FLASH_0_read_eeprom_block(address, (uint8_t *)&val, sizeof(note_t));
 		//FLASH_0_read_eeprom_block((unsigned int *)(&octaves + sizeof(octave_t) * octave + sizeof(note_t) * note), (uint8_t *)&val, sizeof(note_t));
+		eeprom_adr_t address = ((unsigned int)&octaves + sizeof(octave_t) * x.octave + sizeof(note_t) * x.note);
+		//FLASH_0_read_eeprom_block(address, (uint8_t *)&val, sizeof(note_t));
+      eeprom_read_block(&val, &address, sizeof(note_t));
+      val.N = N_8;
+      val.OCRxn = 106;
 		TCCR0B = (TCCR0B & ~((1<<CS02)|(1<<CS01)|(1<<CS00))) | val.N;
 		OCR0A = val.OCRxn - 1; // set the OCRnx
 		tonePlaying = true;
@@ -215,6 +248,10 @@ void tone_stop(void)
 
 void tone_setup()
 {
+   //for(uint16_t i = 0; i < (2*12*8); ++i)
+   {
+   //   eeprom_write_block(&octaves, 0, sizeof(octaves));
+   }
 	// Set buzzer pin as low output
 	DDRD |= _BV(BUZZER_PIN);
 	PORTD &= ~(_BV(PORTD6));

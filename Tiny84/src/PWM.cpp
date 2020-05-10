@@ -30,6 +30,7 @@ PWM pwm;
 
 void PWM::begin(Pin &pin)
 {
+	PRR &= ~(_BV(PRTIM1));
 	//https://andreasrohner.at/posts/Electronics/How-to-set-the-PWM-frequency-for-the-Attiny84/
 	pin.SetOutput();
 	TCCR1A = (1<<COM1B1)|(1<<WGM10);  // mode #1, OC1B pin, Phase correct 8 bit, TOP = 255
@@ -71,5 +72,5 @@ void PWM::Stop()
 
 void PWM::Sleep()
 {
-	power_timer1_disable();
+	PRR |= _BV(PRTIM1);
 }

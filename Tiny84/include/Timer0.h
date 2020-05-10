@@ -22,6 +22,7 @@ class Timer0
 	   void TimerRemove(uint32_t rem);
 	   void TimerAdd(uint32_t add);
 	   uint32_t micros(); // As a fraction of the millis!
+	   void Sleep();
 	   
 	private:
 };

@@ -43,6 +43,7 @@ typedef struct s_octave {
 } octave_t;
 
 void tone_setup();
+void tone_play_block(uint8_t note, uint8_t octave, uint32_t length);
 void tone_play(uint8_t note, uint8_t octave, uint32_t length);
 void tone_update(uint32_t now);
 void tone_stop(void);
