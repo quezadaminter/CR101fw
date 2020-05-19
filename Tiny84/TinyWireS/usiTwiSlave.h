@@ -34,9 +34,8 @@ Change Activity:
 #ifndef _USI_TWI_SLAVE_H_
 #define _USI_TWI_SLAVE_H_
 
-#ifdef _cplusplus
-extern "C"
-#endif
+
+
 /********************************************************************************
 
                                     includes
@@ -44,6 +43,7 @@ extern "C"
 ********************************************************************************/
 
 #include <stdbool.h>
+#include <avr/sleep.h>
 
 
 
@@ -56,8 +56,6 @@ extern "C"
 void    usiTwiSlaveInit( uint8_t );
 void    usiTwiTransmitByte( uint8_t );
 uint8_t usiTwiReceiveByte( void );
-bool    usiTwiDataInReceiveBuffer( void );
-void    (*_onTwiDataRequest)(void);
 bool    usiTwiDataInTransmitBuffer(void);
 uint8_t usiTwiAmountDataInReceiveBuffer(void);
 // on_XXX handler pointers
@@ -94,8 +92,5 @@ void    (*usi_onReceiverPtr)(uint8_t);
 #endif
 
 
-#ifdef _cplusplus
-}
-#endif
 
 #endif  // ifndef _USI_TWI_SLAVE_H_

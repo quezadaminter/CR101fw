@@ -1,6 +1,8 @@
 #ifndef SimpleFIFO_h
 #define SimpleFIFO_h
 
+#include <stdint.h>
+
 #ifndef SIMPLEFIFO_SIZE_TYPE
 #ifndef SIMPLEFIFO_LARGE
 #define SIMPLEFIFO_SIZE_TYPE uint8_t

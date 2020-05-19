@@ -3,6 +3,9 @@
 *
 * Created: 5/9/2020 11:14:13 PM
 * Author: MQUEZADA
+*
+*  This version uses Timer counter 0
+*  and the OCR0A output pin on the ATMega328PB.
 */
 
 
@@ -244,6 +247,7 @@ void Tones::Update(uint32_t now)
 void Tones::Stop()
 {
    TCCR0B &= ~((1<<CS02)|(1<<CS01)|(1<<CS00)); // stop the timer
+	PORTD &= ~(_BV(PORTD6)); // Make sure the port goes low.
 	tonePlaying = false;
 }
 

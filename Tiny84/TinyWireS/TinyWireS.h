@@ -37,9 +37,9 @@
 #define TinyWireS_h
 
 #include <inttypes.h>
-//   #include "usiTwiSlave.h"
 
 #define TWI_RX_BUFFER_SIZE  ( 32 )
+
 class USI_TWI_S
 {
   private:
@@ -55,11 +55,10 @@ class USI_TWI_S
     void onRequest( void (*)(void) );
 };
 
-void TinyWireS_stop_check();
+//void TinyWireS_stop_check();
 // Implement a delay loop that checks for the stop bit (basically direct copy of the stock arduino implementation from wiring.c)
-void tws_delay(unsigned long);
+//void tws_delay(unsigned long);
 
 extern USI_TWI_S TinyWireS;
 
 #endif
-

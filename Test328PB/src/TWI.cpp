@@ -6,6 +6,7 @@
 */
 
 #include <avr/io.h>
+#include <util/delay.h>
 #include "TWI.h"
 
 TWI twi;
@@ -26,6 +27,8 @@ void TWI::Init()
 {
 	/* Enable TWI0 */
 	PRR0 &= ~(1 << PRTWI0);
+
+   TWCR0 = 0; // This allows the interface to reinitialize.
 
 	/* SCL bitrate = F_CPU / (16 + 2 * TWBR0 * TWPS value) */
 	/* Configured bit rate is 100.000kHz, based on CPU frequency 8.000MHz */
@@ -49,16 +52,19 @@ uint8_t TWI::SendByte(uint8_t address, uint16_t reg, uint8_t data)
    // Call device
    if(SendAddress(address, WRITE) != SLA_W_SENT_ACK_RECVD) // Write
    {
+      Stop();
       return(ERROR);
    }
    // Send register address
    if(Write(reg) != DATA_BYTE_SENT_ACK_RECVD)
    {
+      Stop();
       return(ERROR);
    }
    // Send the data
    if(Write(data) != DATA_BYTE_SENT_ACK_RECVD)
    {
+      Stop();
       return(ERROR);
    }
    // End transmission
@@ -75,27 +81,31 @@ uint8_t TWI::SendWord(uint8_t address, uint16_t reg, uint16_t data)
    // Call device
    if(SendAddress(address, WRITE) != SLA_W_SENT_ACK_RECVD)
    {
+      Stop();
       return(ERROR);
    }
    // Set register address
    if(Write(reg) != DATA_BYTE_SENT_ACK_RECVD)
    {
+      Stop();
       return(ERROR);
    }
    // Write the data, send high byte first first
    if(Write(data >> 8) != DATA_BYTE_SENT_ACK_RECVD)
    {
+      Stop();
       return(ERROR);
    }
    if(Write(data) != DATA_BYTE_SENT_ACK_RECVD)
    {
+      Stop();
       return(ERROR);
    }
    Stop();
    return(SUCCESS);
 }
 
-uint8_t TWI::ReceiveByte(uint8_t device, uint16_t reg)
+uint8_t TWI::ReceiveByte(uint8_t device, uint16_t reg, uint8_t &recvdData)
 {
    if(Start() != START_TRANSMITTED)
    {
@@ -105,14 +115,16 @@ uint8_t TWI::ReceiveByte(uint8_t device, uint16_t reg)
    // Call device
    if(SendAddress(device, WRITE) != SLA_W_SENT_ACK_RECVD)
    {
+      Stop();
       return(ERROR);
    }
    // Set register address
-   if(Write(reg) != SLA_W_SENT_ACK_RECVD)
+   if(Write(reg) != DATA_BYTE_SENT_ACK_RECVD)
    {
+      Stop();
       return(ERROR);
    }
-
+   _delay_ms(1);
    // Send repeated start to not
    // relinquish the bus.
    if(Start() != REPEATED_START_TRANSMITTED)
@@ -121,18 +133,20 @@ uint8_t TWI::ReceiveByte(uint8_t device, uint16_t reg)
    }
    if (SendAddress(device, READ) != SLA_R_SENT_ACK_RECVD)
    {
+      Stop();
       return(ERROR);
    }
-   uint8_t data = ReadNack();
+   recvdData = ReadNack();
    if(Status() != DATA_BYTE_RECVD_NOT_ACK_RECVD)
    {
+      Stop();
       return(ERROR);
    }
    Stop();
-   return(data);
+   return(SUCCESS);
 }
 
-uint16_t TWI::ReceiveWord(uint8_t device, uint16_t reg)
+uint8_t TWI::ReceiveWord(uint8_t device, uint16_t reg, uint16_t &recvdData)
 {
    if(Start() != START_TRANSMITTED)
    {
@@ -141,30 +155,36 @@ uint16_t TWI::ReceiveWord(uint8_t device, uint16_t reg)
    // Call device
    if (SendAddress(device, READ) != SLA_W_SENT_ACK_RECVD)
    {
+      Stop();
       return(ERROR);
    }
    // Set register
    if(Write(reg) != DATA_BYTE_SENT_ACK_RECVD)
    {
+      Stop();
       return(ERROR);
    }
 
    if(Start() != REPEATED_START_TRANSMITTED)
    {
+      Stop();
       return(ERROR);
    }
    if (SendAddress(device, READ) != SLA_R_SENT_ACK_RECVD)
    {
+      Stop();
       return(ERROR);
    }
-   uint16_t data = ReadAck();
+   recvdData = ReadAck();
    if(Status() != DATA_BYTE_RECVD_ACK_RECVD)
    {
+      Stop();
       return(ERROR);
    }
-   data = (data << 8) | ReadNack();
+   recvdData = (recvdData << 8) | ReadNack();
    if(Status() != DATA_BYTE_RECVD_NOT_ACK_RECVD)
    {
+      Stop();
       return(ERROR);
    }
    Stop();

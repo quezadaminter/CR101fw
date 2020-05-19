@@ -19,6 +19,7 @@
 #include "ADC.h"
 #include "PWM.h"
 #include "Registers.h"
+#include "BasicSerial.h"
 #define SimpleFIFO_NONVOLATILE
 #include "SimpleFIFO.h"
 
@@ -53,17 +54,13 @@ volatile uint8_t reg_position = 0;
 volatile SimpleFIFO<uint8_t, 10> registerEvents;
 const uint8_t reg_size = sizeof(i2c_regs);
 
-#define DB 50
-uint16_t a,b,c,pa,pb,pc,avg;
-int16_t da, db, dc;
-int8_t ca, cb, cc;
-
 void UpdateRegisters();
 
 // Return the data obtained from the
 // operation selected by the register pointer.
 void masterWantsData() // handles a master read operation:: requestFrom()
 {
+   Serial.print("E:");Serial.print(reg_position);Serial.print("-");Serial.println(i2c_regs[reg_position]);
 	TinyWireS.send(i2c_regs[reg_position]);
 	if(reg_position == T84_REG_SCROLL_CLICKS)
 	{
@@ -93,25 +90,68 @@ void masterSentData(uint8_t howManyBytes) // handles a master write operation
 		return;
 	}
 
-	reg_position = TinyWireS.receive();
-	howManyBytes--;
-	if (!howManyBytes)
-	{
-		// This write was only to set the buffer for next read
-	}
-	else
-	{
-		while(howManyBytes--)
-		{
-			i2c_regs[reg_position] = TinyWireS.receive();
-			UpdateRegisters();
-			reg_position++;
-			if (reg_position >= reg_size)
-			{
-				reg_position = 0;
-			}
-		}
-	}
+   Serial.print("F:");Serial.println(howManyBytes);
+   if(howManyBytes % 2 == 0)
+   {
+      // Reg/data pair, we don't have
+      // wide registers on this system.
+      while(howManyBytes--)
+      {
+         // Get the register byte
+         reg_position = TinyWireS.receive();
+         Serial.print("A:");Serial.println(reg_position);
+         if(reg_position < T84_REG_RANGE)
+         {
+            // Get the data for the register
+            i2c_regs[reg_position] = TinyWireS.receive();
+            Serial.print("B:");Serial.println(i2c_regs[reg_position]);
+            UpdateRegisters();
+            howManyBytes--;
+         }
+         else
+         {
+            reg_position = 0;
+            // Out of sequence or bad register.
+            break;
+         }
+      }
+   }
+   else
+   {
+      while(howManyBytes--)
+      {
+         // Get the register
+         reg_position = TinyWireS.receive();
+         Serial.print("C:");Serial.println(reg_position);
+         if(howManyBytes > 0 && reg_position < T84_REG_RANGE)
+         {
+            // Get value for register pair
+            i2c_regs[reg_position] = TinyWireS.receive();
+            UpdateRegisters();
+            Serial.print("D:");Serial.println(i2c_regs[reg_position]);
+            howManyBytes--;
+         }
+      }
+      //reg_position = TinyWireS.receive();
+      //howManyBytes--;
+      //if (!howManyBytes)
+      //{
+         //// This write was only to set the buffer for next read
+      //}
+      //else
+      //{
+         //while(howManyBytes--)
+         //{
+            //i2c_regs[reg_position] = TinyWireS.receive();
+            //UpdateRegisters();
+            //reg_position++;
+            //if (reg_position >= reg_size)
+            //{
+               //reg_position = 0;
+            //}
+         //}
+      //}
+   }
 }
 
 void InitializeIO()
@@ -126,7 +166,7 @@ void InitializeIO()
 
    i2c_regs[T84_REG_SCROLL_CLICKS] = 0x80;
    ORANGE_PIN.SetOutput();
-   GREEN_PIN.SetOutput();
+   //GREEN_PIN.SetOutput();
    RED_PIN.SetOutput();
    DATA_READY_PIN.SetOutput();
    SCR1_PIN.SetOutput();
@@ -138,7 +178,7 @@ void InitializeIO()
    power_usi_enable();
 
    ORANGE_PIN.Set(LOW);
-   GREEN_PIN.Set(LOW);
+   //GREEN_PIN.Set(LOW);
    RED_PIN.Set(LOW);
    DATA_READY_PIN.Set(HIGH);
 
@@ -160,7 +200,7 @@ void InitializeIO()
 	}
 	pwm.setLevel(WHITE_PIN, 0);
    ORANGE_PIN.Set(HIGH);
-   GREEN_PIN.Set(HIGH);
+   //GREEN_PIN.Set(HIGH);
    RED_PIN.Set(HIGH);
 }
 
@@ -174,7 +214,7 @@ void Sleep()
 {
    for (uint8_t i = 0; i < 5; ++i)
    {
-      GREEN_PIN.Toggle();
+      //GREEN_PIN.Toggle();
       _delay_ms(100);
    }
 	//https://www.avrfreaks.net/forum/solved-low-power-when-when-sinking-current
@@ -184,7 +224,7 @@ void Sleep()
 	//// so there are no fake button presses.
 	WHITE_PIN.SetInput();
 	ORANGE_PIN.SetInput();
-	GREEN_PIN.SetInput();
+	//GREEN_PIN.SetInput();
 	RED_PIN.SetInput();
 	DATA_READY_PIN.SetInput();
 	SCR1_PIN.SetInput();
@@ -233,7 +273,7 @@ uint16_t readTheOne(uint8_t ch)
 	uint16_t d = adc.Read();//readChannel(0);
 	PORTA &= ~(_BV(PORTA0 + ch));//(ch, LOW);
 	//Serial.print(d);
-	tws_delay(10);
+	_delay_ms(10);
 	return(d);
 }
 
@@ -242,7 +282,8 @@ void SignalUpdate()
 	// Let the master know there is data ready to be sent.
 	DATA_READY_PIN.Set(HIGH);
 	DATA_READY_PIN.Set(LOW);
-	tws_delay(1);
+   Serial.println("I");
+	_delay_ms(1);
 	DATA_READY_PIN.Set(HIGH);
 }
 
@@ -356,8 +397,7 @@ void UpdateRegisters()
 		case(T84_REG_LED_STATE):
 			ORANGE_PIN.Set(bit_is_set(i2c_regs[reg_position], T84_ORANGE_BIT) ? LOW : HIGH);
 			RED_PIN.Set(bit_is_set(i2c_regs[reg_position], T84_RED_BIT) ? LOW : HIGH);
-			GREEN_PIN.Set(bit_is_set(i2c_regs[reg_position], T84_GREEN_BIT) ? LOW : HIGH);
-			reg_position = T84_REG_ID;
+			//GREEN_PIN.Set(bit_is_set(i2c_regs[reg_position], T84_GREEN_BIT) ? LOW : HIGH);
 		break;
 		case(T84_REG_WHITE_PWM_VALUE):
 			pwm.Start();
@@ -366,9 +406,8 @@ void UpdateRegisters()
 			{
 				// In the middle of the hold,
 				// extend it again.
-				whiteLEDHold += 5000;
+				whiteLEDHold = timer0.millis() + 5000;
 			}
-			reg_position = T84_REG_ID;
 		break;
 		case(T84_REG_SLEEP):
 			// Go to sleep!
@@ -384,6 +423,15 @@ void UpdateRegisters()
 				RED_PIN.Toggle();
 				_delay_ms(10);
 			}
+         if(i2c_regs[reg_position] > 128)
+         {
+			   i2c_regs[T84_REG_SCROLL_CLICKS] += 1;
+         }
+         else if(i2c_regs[reg_position] < 128)
+         {
+			   i2c_regs[T84_REG_SCROLL_CLICKS] -= 1;
+         }
+         SignalUpdate();
 		break;
 		default:
 		break;
@@ -454,8 +502,9 @@ int main(void)
 			//s = 0;
 		//}
 		
-		TinyWireS_stop_check();// Check for a stop condition here.
+//		TinyWireS_stop_check();// Check for a stop condition here.
 		CheckWhiteLEDLevel(now);
+      Serial.send();
     }
 }
 

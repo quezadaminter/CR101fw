@@ -46,8 +46,8 @@ class TWI
       void Init();
       uint8_t SendByte(uint8_t address, uint16_t reg, uint8_t data);
       uint8_t SendWord(uint8_t address, uint16_t reg, uint16_t data);
-      uint8_t ReceiveByte(uint8_t device, uint16_t reg);
-      uint16_t ReceiveWord(uint8_t device, uint16_t reg);
+      uint8_t ReceiveByte(uint8_t device, uint16_t reg, uint8_t &recvdData);
+      uint8_t ReceiveWord(uint8_t device, uint16_t reg, uint16_t &rcvdData);
       void Sleep();
 
    protected:

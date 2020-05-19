@@ -26,7 +26,7 @@
     <OverrideVtorValue>exception_table</OverrideVtorValue>
     <BootSegment>2</BootSegment>
     <ResetRule>0</ResetRule>
-    <eraseonlaunchrule>0</eraseonlaunchrule>
+    <eraseonlaunchrule>1</eraseonlaunchrule>
     <EraseKey />
     <AsfFrameworkConfig>
       <framework-data xmlns="">
@@ -48,13 +48,13 @@
         <InterfaceProperties>
           <IspClock>125000</IspClock>
         </InterfaceProperties>
-        <InterfaceName>ISP</InterfaceName>
+        <InterfaceName>debugWIRE</InterfaceName>
       </ToolOptions>
       <ToolType>com.atmel.avrdbg.tool.atmelice</ToolType>
       <ToolNumber>J41800088552</ToolNumber>
       <ToolName>Atmel-ICE</ToolName>
     </com_atmel_avrdbg_tool_atmelice>
-    <avrtoolinterface>ISP</avrtoolinterface>
+    <avrtoolinterface>debugWIRE</avrtoolinterface>
     <avrtoolinterfaceclock>125000</avrtoolinterfaceclock>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
@@ -133,6 +133,7 @@
       <Value>%24(PackRepoDir)\Atmel\ATmega_DFP\1.4.351\include</Value>
       <Value>../../CR101/include</Value>
       <Value>../include</Value>
+      <Value>../../Tiny84/include</Value>
     </ListValues>
   </avrgcc.compiler.directories.IncludePaths>
   <avrgcc.compiler.optimization.level>Optimize debugging experience (-Og)</avrgcc.compiler.optimization.level>
@@ -153,6 +154,7 @@
       <Value>%24(PackRepoDir)\Atmel\ATmega_DFP\1.4.351\include</Value>
       <Value>../../CR101/include</Value>
       <Value>../include</Value>
+      <Value>../../Tiny84/include</Value>
     </ListValues>
   </avrgcccpp.compiler.directories.IncludePaths>
   <avrgcccpp.compiler.optimization.level>Optimize debugging experience (-Og)</avrgcccpp.compiler.optimization.level>
@@ -176,10 +178,10 @@
     </ToolchainSettings>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="include\Timer1.h">
+    <Compile Include="include\PCInterrupts.h">
       <SubType>compile</SubType>
     </Compile>
-    <Compile Include="include\Tones.cpp">
+    <Compile Include="include\Timer1.h">
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="include\Tones.h">
@@ -191,7 +193,13 @@
     <Compile Include="main.cpp">
       <SubType>compile</SubType>
     </Compile>
+    <Compile Include="src\PCInterrupts.cpp">
+      <SubType>compile</SubType>
+    </Compile>
     <Compile Include="src\Timer1.cpp">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\Tones.cpp">
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="src\TWI.cpp">

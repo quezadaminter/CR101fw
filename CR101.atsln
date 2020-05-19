@@ -9,6 +9,8 @@ Project("{E66E83B9-2572-4076-B26E-6BE79FF3018A}") = "Tiny84", "Tiny84\Tiny84.cpp
 EndProject
 Project("{E66E83B9-2572-4076-B26E-6BE79FF3018A}") = "Test328PB", "Test328PB\Test328PB.cppproj", "{F08CE473-0158-40B3-9BAD-39DA87266614}"
 EndProject
+Project("{E66E83B9-2572-4076-B26E-6BE79FF3018A}") = "tiny1614", "tiny1614\tiny1614.cppproj", "{7F55A570-7180-431A-8765-31B026ACF544}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|AVR = Debug|AVR
@@ -27,6 +29,10 @@ Global
 		{F08CE473-0158-40B3-9BAD-39DA87266614}.Debug|AVR.Build.0 = Debug|AVR
 		{F08CE473-0158-40B3-9BAD-39DA87266614}.Release|AVR.ActiveCfg = Release|AVR
 		{F08CE473-0158-40B3-9BAD-39DA87266614}.Release|AVR.Build.0 = Release|AVR
+		{7F55A570-7180-431A-8765-31B026ACF544}.Debug|AVR.ActiveCfg = Debug|AVR
+		{7F55A570-7180-431A-8765-31B026ACF544}.Debug|AVR.Build.0 = Debug|AVR
+		{7F55A570-7180-431A-8765-31B026ACF544}.Release|AVR.ActiveCfg = Release|AVR
+		{7F55A570-7180-431A-8765-31B026ACF544}.Release|AVR.Build.0 = Release|AVR
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

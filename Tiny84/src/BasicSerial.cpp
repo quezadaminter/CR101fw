@@ -22,23 +22,62 @@ BasicSerial::~BasicSerial()
 {
 } //~BasicSerial
 
-void BasicSerial::print(const char *str)
+void BasicSerial::send()
+{
+   while(txTail != txHead)
+   {
+      TxByte(TX_BUFFER[ txTail ]);
+      txTail = ( txTail + 1 ) & TX_BUFFER_MASK;
+      txCount--;
+   }
+}
+
+void BasicSerial::write(uint8_t i)
+{
+   TX_BUFFER[ txHead ] = i;
+   txHead = ( txHead + 1 ) & TX_BUFFER_MASK;
+   txCount++;
+}
+
+void BasicSerial::write(const char *str)
 {
 	while(*str)
 	{
-		TxByte(*str++);
+      TX_BUFFER[ txHead ] = *str++;
+      txHead = ( txHead + 1 ) & TX_BUFFER_MASK;
+      txCount++;
 	}
+}
+
+void BasicSerial::print(const char *str)
+{
+   write(str);
+	//while(*str)
+	//{
+		//TxByte(*str++);
+	//}
 }
 
 //DGI
 void BasicSerial::println(const char *str)
 {
-	while(*str)
-	{
-		TxByte(*str++);
-	}
-	TxByte('\r');
-	TxByte('\n');
+   write(str);
+   write("\r\n");
+	//while(*str)
+	//{
+		//TxByte(*str++);
+	//}
+	//TxByte('\r');
+	//TxByte('\n');
+}
+
+void BasicSerial::println(uint8_t i)
+{
+   print(i);
+   write("\r\n");
+   //print(i);
+	//TxByte('\r');
+	//TxByte('\n');
 }
 
 //DGI
@@ -46,7 +85,7 @@ void BasicSerial::print(uint8_t i)
 {
 	char buf[10] = {'\0'};
 	utoa(i, buf, 10);
-	println(buf);
+   print(buf);
 }
 
 
