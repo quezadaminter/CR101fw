@@ -125,3 +125,8 @@ void TWI_S::setOnRequest(void (*handler)(void))
    // Master wants some amount of data
    onRequest = handler;
 }
+
+void TWI_S::Sleep()
+{
+   I2C_close();
+}

@@ -28,6 +28,7 @@ class SerialIO
       void print(uint16_t i);
       void print(uint32_t i);
       void send();
+      void Sleep();
    protected:
    private:
       SerialIO( const SerialIO &c );

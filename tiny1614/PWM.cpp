@@ -7,9 +7,7 @@
 #include <avr/power.h>
 #include <avr/io.h>
 #include "PWM.h"
-
-#define PB(p) p
-#define PORTB3m (1 << PB(3))
+#include "PinMap.h"
 
 #define RESET_COUNTER (TCA0.SINGLE.CNT = 0)
 #define PWM_ON  (TCA0.SINGLE.CTRLA |= TCA_SINGLE_ENABLE_bm)
@@ -21,8 +19,8 @@ void PWM::begin()//Pin &pin)
 {
    // The pin must be set as output for the PWM
    // signal to make it outside the chip.
-   PORTB.DIRSET = PORTB3m;
-   PORTB.OUTCLR = PORTB3m;
+   PORTB.DIRSET = LEDPWMbm;
+   PORTB.OUTCLR = LEDPWMbm;
 
    // Using alternate pin for WO0 (PB3)
    PORTMUX.CTRLC = 0x01;
@@ -72,13 +70,13 @@ void PWM::setLevel(uint16_t dutyCycle)// Pin &pin, uint8_t dutyCycle)
 	{
 		// timer off, set output low.
 		PWM_OFF;
-      PORTB.OUTCLR = PORTB3m;
+      LEDPWM_OFF;
 	}
 	else if(dutyCycle == 0xFF)
 	{
 		// timer off, set output high.
 		PWM_OFF;
-      PORTB.OUTSET = PORTB3m;
+      LEDPWM_OFF;
 	}
 	else
 	{
@@ -93,10 +91,12 @@ void PWM::Start()
 
 void PWM::Stop()
 {
+   setLevel(0);
 	PWM_OFF;
 }
 
 void PWM::Sleep()
 {
-	//PRR |= _BV(PRTIM1);
+   Stop();
+   TCA0.SINGLE.CTRLA = ~TCA_SINGLE_ENABLE_bm /* Module Enable: enabled */;
 }

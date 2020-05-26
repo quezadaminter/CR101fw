@@ -37,6 +37,8 @@ class TWI_S
        uint8_t available();
        uint8_t receive();
        void send(uint8_t data);
+
+       void Sleep();
    protected:
    private:
       TWI_S( const TWI_S &c );

@@ -56,9 +56,10 @@ void SerialIO::begin(uint32_t speed)
                   USART_CHSIZE_8BIT_gc; // CharacterSize: 8bit[default]
    USART0.CTRLA =
                   USART_RXCIE_bm | // Enable RX interrupt
-                  USART_TXCIE_bm; // Disable TX interrupt
+                  //USART_TXCIE_bm | // Disable TX interrupt
+                  USART_DREIE_bm;  // Enable the Data register empty interrupt
    USART0.CTRLB =
-                  USART_RXEN_bm | // Start Receiver
+                  //USART_RXEN_bm | // Start Receiver
                   USART_TXEN_bm | // Start Transmitter
                   USART_RXMODE_NORMAL_gc; // Receiver mode is Normal USART & 1x-speed
 
@@ -75,6 +76,21 @@ ISR(USART0_TXC_vect)
 {
 }
 
+ISR(USART0_DRE_vect)
+{
+   if(txTail != txHead)
+   {
+      USART0.TXDATAL = TX_BUFFER[txTail];
+      txTail = ( txTail + 1 ) & SERIAL_TX_BUFFER_MASK;
+      txCount--;
+   }
+   else
+   {
+      // Stop the interrupt
+      USART0.CTRLA &= ~USART_DREIF_bm;
+   }
+}
+
 void SerialIO::push(uint8_t i)
 {
    // If TX buffer is empty
@@ -87,11 +103,14 @@ void SerialIO::push(uint8_t i)
 
 void SerialIO::send()
 {
-   while(txTail != txHead)
+   ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
    {
-      push(TX_BUFFER[ txTail ]);
-      txTail = ( txTail + 1 ) & SERIAL_TX_BUFFER_MASK;
-      txCount--;
+      while(txTail != txHead)
+      {
+         push(TX_BUFFER[ txTail ]);
+         txTail = ( txTail + 1 ) & SERIAL_TX_BUFFER_MASK;
+         txCount--;
+      }
    }
 }
 
@@ -100,6 +119,8 @@ void SerialIO::write(uint8_t i)
    TX_BUFFER[ txHead ] = i;
    txHead = ( txHead + 1 ) & SERIAL_TX_BUFFER_MASK;
    txCount++;
+   // Start the interrupt
+   USART0.CTRLA |= USART_DREIF_bm;
 }
 
 void SerialIO::write(const char *str)
@@ -110,6 +131,8 @@ void SerialIO::write(const char *str)
       txHead = ( txHead + 1 ) & SERIAL_TX_BUFFER_MASK;
       txCount++;
 	}
+   // Start the interrupt
+   USART0.CTRLA |= USART_DREIF_bm;
 }
 
 void SerialIO::print(const char *str)
@@ -117,7 +140,6 @@ void SerialIO::print(const char *str)
    write(str);
 }
 
-//DGI
 void SerialIO::println(const char *str)
 {
    write(str);
@@ -130,7 +152,6 @@ void SerialIO::println(uint8_t i)
    write('\n');
 }
 
-//DGI
 void SerialIO::print(uint8_t i)
 {
 	char buf[10] = {'\0'};
@@ -158,4 +179,10 @@ void SerialIO::print(uint32_t i)
 	char buf[10] = {'\0'};
 	ultoa(i, buf, 10);
 	println(buf);
+}
+
+void SerialIO::Sleep()
+{
+   USART0.CTRLB &= ~(USART_RXEN_bm |  // Disable Receiver
+                    USART_TXEN_bm);  // Disable Transmitter
 }
