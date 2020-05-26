@@ -35,7 +35,7 @@ void TWI::Init()
 	TWBR0 = 0x20;          /* SCL bit rate: 100.000kHZ before prescaling */
 	TWSR0 = 0x00 << TWPS0; /* SCL precaler: 1, effective bitrate = 100.000kHz */
    //enable TWI
-   TWCR0 = (1 << TWEN); // Enable interrupt
+   TWCR0 = (1 << TWEN); // Enable interrupt here eventually
 }
 
 void TWI::Sleep()
@@ -124,7 +124,7 @@ uint8_t TWI::ReceiveByte(uint8_t device, uint16_t reg, uint8_t &recvdData)
       Stop();
       return(ERROR);
    }
-   _delay_ms(1);
+   //_delay_ms(1);
    // Send repeated start to not
    // relinquish the bus.
    if(Start() != REPEATED_START_TRANSMITTED)

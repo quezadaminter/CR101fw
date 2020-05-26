@@ -179,6 +179,8 @@ void Tones::Init()
 	TCCR0B= (1 << CS10);;
 
 	TCCR0B &= ~((1<<CS02)|(1<<CS01)|(1<<CS00)); // stop the timer until there is something to play
+   TCNT0 = 0;
+   OCR0A = 0xFF;
 }
 
 void Tones::Delay(uint32_t d)
@@ -195,6 +197,7 @@ void Tones::PlayBlock(uint8_t note, uint8_t octave, uint32_t hold)
    note_t val;
    uint16_t address = ((unsigned int)&octaves + sizeof(octave_t) * octave + sizeof(note_t) * note);
    eeprom_read_block(&val, (uint8_t *)address, sizeof(note_t));
+   TCCR0A |= (1 << COM0A0); // Connect OC0A
    TCCR0B = (TCCR0B & ~((1<<CS02)|(1<<CS01)|(1<<CS00))) | val.N;
    OCR0A = val.OCRxn - 1; // set the OCRnx
    tonePlaying = true;
@@ -215,6 +218,7 @@ void Tones::PlayNext()
 	{
 		uint16_t address = ((unsigned int)&octaves + sizeof(octave_t) * x.octave + sizeof(note_t) * x.note);
       eeprom_read_block(&val, (uint8_t *)address, sizeof(note_t));
+      TCCR0A |= (1 << COM0A0); // Connect OC0A
 		TCCR0B = (TCCR0B & ~((1<<CS02)|(1<<CS01)|(1<<CS00))) | val.N;
 		OCR0A = val.OCRxn - 1; // set the OCRnx
 		tonePlaying = true;
@@ -246,8 +250,11 @@ void Tones::Update(uint32_t now)
 
 void Tones::Stop()
 {
+   TCCR0A &= ~(1 << COM0A0); // Disconnect OC0A, otherwise the output may hang high.
    TCCR0B &= ~((1<<CS02)|(1<<CS01)|(1<<CS00)); // stop the timer
-	PORTD &= ~(_BV(PORTD6)); // Make sure the port goes low.
+   OCR0A = 0xFF;
+   TCNT0 = 0;
+	PORTD &= ~(_BV(PORTD6)); // Make sure the port stays low to drain the mosfet gate.
 	tonePlaying = false;
 }
 
@@ -260,5 +267,4 @@ void Tones::Flush()
 void Tones::Sleep()
 {
    Flush();
-
 }

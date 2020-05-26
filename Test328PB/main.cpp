@@ -48,9 +48,11 @@ ISR(WDT_vect)
 #define BDDR_ON 0B00000000
 #define BPOR_ON 0B00111111
 #define CDDR_ON 0B00000000
-#define CPOR_ON 0B11001101
-#define DDDR_ON 0B00100010
-#define DPOR_ON 0B10010000
+#define CPOR_ON 0B00001101
+#define DDDR_ON 0B01100000
+#define DPOR_ON 0B10100010
+#define EDDR_ON 0B00000000
+#define EPOR_ON 0B00001101
 
 #define BDDR_SL 0B00000000
 #define BPOR_SL 0B00000000
@@ -58,6 +60,8 @@ ISR(WDT_vect)
 #define CPOR_SL 0B00000000
 #define DDDR_SL 0B00000000
 #define DPOR_SL 0B00000000
+#define EDDR_SL 0B00000000
+#define EPOR_SL 0B00000000
 
 void InitializeIO()
 {
@@ -70,14 +74,16 @@ void InitializeIO()
    PORTC = CPOR_ON;   //0B11001101;
    DDRD  = DDDR_ON;   //0B00100010;
    PORTD = DPOR_ON;   //0B10010000;
+   DDRE  = EDDR_ON;
+   PORTE = EPOR_ON;
 
    ints.Init();
    twi.Init();
    t1.Init();
    tones.Init();
 
-   tones.PlayBlock(4, 5, 200);
-   tones.PlayBlock(5, 5, 200);
+   tones.PlayBlock(F(5), 200);
+   tones.PlayBlock(F(4), 200);
 }
 
 void Sleep()
@@ -92,6 +98,8 @@ void Sleep()
    PORTC = CPOR_SL;   //0B11001101;
    DDRD  = DDDR_SL;   //0B00100010;
    PORTD = DPOR_SL;   //0B10010000;
+   DDRE  = EDDR_SL;   //0B00100010;
+   PORTE = EPOR_SL;   //0B10010000;
 
    ints.Sleep();
    twi.Sleep();
@@ -121,6 +129,10 @@ int main(void)
    //PORTD = 0x00;
 
    InitializeIO();
+   //DDRD |= _BV(5);
+   //PORTD |= _BV(5);
+   //t1.Init();
+   //tones.Init();
    sei();
 
    uint8_t s = 0;
@@ -131,18 +143,10 @@ int main(void)
     {
       now = t1.millis();
 
-      if(now % 1000 == 0)
+      if(now % 1000 == 0 && now > d)
       {
-         if(now > d)
+         //if(now > d)
          {
-            d = now + 250;
-            PORTD ^= _BV(1);
-            //note_t val;
-            //uint16_t address = ((unsigned int)&octaves + sizeof(octave_t) * octave + sizeof(note_t) * note);
-            //eeprom_read_block(&val, (uint8_t *)address, sizeof(note_t));
-            //TCCR0B = (TCCR0B & ~((1<<CS02)|(1<<CS01)|(1<<CS00))) | val.N;
-            //OCR0A = val.OCRxn - 1; // set the OCRnx
-//
             //++note;
             //if(note > 11)
             //{
@@ -153,32 +157,36 @@ int main(void)
                   //octave = 0;
                //}
             //}
-            //if(s == 0)
-            //{
-               //s = 1;
-               //DDRD |= (_BV(0));
-               //PORTD |= (_BV(0));
-               ////tones.Play(A(3), 200);
-////               twi.SendByte(T84_I2C_SLAVE_ADDRESS, T84_REG_LED_STATE, T84_GREEN_BIT);
-               ////tone_play(F(5), 250);
-            //}
-            //else if(s == 1)
-            //{
-               //s = 2;
-               //PORTD &= ~(_BV(0));
-               ////tones.Play(A(4), 200);
-               ////twi.SendByte(T84_I2C_SLAVE_ADDRESS, T84_REG_LED_STATE, T84_RED_BIT);
-            //}
-            //else if(s == 2)
-            //{
-               //s = 0;
-               //PORTD &= ~(_BV(0));
-               //DDRD &= ~(_BV(0));
-               ////tones.Play(A(5), 200);
-               ////twi.SendByte(T84_I2C_SLAVE_ADDRESS, T84_REG_LED_STATE, T84_RG_OFF_BIT);
-            //}
+            if(s == 0)
+            {
+               s = 1;
+               tones.Play(F(5), 200);
+               twi.SendByte(T84_I2C_SLAVE_ADDRESS, T84_REG_LED_STATE, T84_GREEN_BIT_MASK);
+            }
+            else if(s == 1)
+            {
+               s = 2;
+               tones.Play(A(4), 200);
+               twi.SendByte(T84_I2C_SLAVE_ADDRESS, T84_REG_LED_STATE, T84_RED_BIT_MASK);
+               //_delay_ms(1000);
+            }
+            else if(s == 2)
+            {
+               s = 0;
+               tones.Play(E(3), 200);
+               twi.SendByte(T84_I2C_SLAVE_ADDRESS, T84_REG_LED_STATE, 0x00);
+               //twi.SendByte(T84_I2C_SLAVE_ADDRESS, T84_REG_I2C_TEST, 110);
+               //_delay_ms(1000);
+            }
          }
+
+         if(now % 10000 == 0)
+         {
+            twi.SendByte(T84_I2C_SLAVE_ADDRESS, T84_REG_WHITE_PWM_VALUE, 0xFF);
+         }
+         d = now + 250;
       }
+
       ints.CheckSwitchStates();
       //CheckScrollClicks();
 		//CheckChargerStatus();
@@ -189,7 +197,7 @@ int main(void)
       tones.Update(now);
 
       // Feed the dog so it don't bite.
-      wdt_reset();
+      //wdt_reset();
     }
 }
 

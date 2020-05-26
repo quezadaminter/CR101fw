@@ -51,7 +51,8 @@ void PCInterrupts::Init()
             (1 << PCINT26);  // Pin change enable mask 26
 
            // PORTD
-	PCMSK2 = (1 << PCINT18) | // Pin change enable mask 17
+	PCMSK2 = (1 << PCINT17) | // Pin change enable mask 17
+	         (1 << PCINT19) |  // Pin change enable mask 20
 	         (1 << PCINT20) |  // Pin change enable mask 20
 	         (1 << PCINT23);  // Pin change enable mask 23
 
@@ -141,11 +142,15 @@ ISR(PCINT2_vect)
    
    if(changedbits & _BV(T84_DATA_READY_INT))
    {
-      IS_PRESSED(PIND, T84_DATA_READY_INT) ? (SWITCH_STATES &= ~(_BV(SWITCH_SCROLL_EVENT))) : (SWITCH_STATES |= _BV(SWITCH_SCROLL_EVENT));
-	   //if(IS_RELEASED(PIND, T84_DATA_READY_INT))
-	   //{
-	      //scrollEventDetected = true;
-	   //}
+      //IS_PRESSED(PIND, T84_DATA_READY_INT) ? (SWITCH_STATES &= ~(_BV(SWITCH_SCROLL_EVENT))) : (SWITCH_STATES |= _BV(SWITCH_SCROLL_EVENT));
+      if(IS_RELEASED(PIND, T84_DATA_READY_INT))
+      {
+         SWITCH_STATES |= _BV(SWITCH_SCROLL_EVENT);
+      }
+      else
+      {
+         SWITCH_STATES &= ~(_BV(SWITCH_SCROLL_EVENT));
+      }
    }
    else if(changedbits & _BV(INT_MUSIC))
    {
@@ -194,7 +199,7 @@ void PCInterrupts::CheckSwitchStates()
       {
          tones.Play(A(3), 50);
          tones.Play(A(2), 50);
-         _delay_ms(1);
+         //_delay_ms(1);
       }
       else
       {
@@ -204,17 +209,17 @@ void PCInterrupts::CheckSwitchStates()
       if(change & _BV(SWITCH_MUTE))
       {
          SWITCH_PAST_STATE ^= _BV(SWITCH_MUTE);
-         _delay_ms(1);
+         //_delay_ms(1);
       }
       if(change & _BV(SWITCH_VOL_UP))
       {
          SWITCH_PAST_STATE ^= _BV(SWITCH_VOL_UP);
-         _delay_ms(1);
+         //_delay_ms(1);
       }
       if(change & _BV(SWITCH_VOL_DN))
       {
          SWITCH_PAST_STATE ^= _BV(SWITCH_VOL_DN);
-         _delay_ms(1);
+         //_delay_ms(1);
       }
       if(change & _BV(SWITCH_A))
       {
@@ -222,7 +227,7 @@ void PCInterrupts::CheckSwitchStates()
             twi.SendByte(T84_I2C_SLAVE_ADDRESS, T84_REG_LED_STATE, T84_GREEN_BIT_MASK) :
             twi.SendByte(T84_I2C_SLAVE_ADDRESS, T84_REG_LED_STATE, 0);
          SWITCH_PAST_STATE ^= _BV(SWITCH_A);
-         _delay_ms(1);
+         //_delay_ms(1);
       }
       if(change & _BV(SWITCH_B))
       {
@@ -230,7 +235,7 @@ void PCInterrupts::CheckSwitchStates()
             twi.SendByte(T84_I2C_SLAVE_ADDRESS, T84_REG_SLEEP, 0xFF) :
             0;
          SWITCH_PAST_STATE ^= _BV(SWITCH_B);
-         _delay_ms(1);
+         //_delay_ms(1);
       }
       if(change & _BV(SWITCH_C))
       {
@@ -238,27 +243,27 @@ void PCInterrupts::CheckSwitchStates()
             twi.SendByte(T84_I2C_SLAVE_ADDRESS, T84_REG_LED_STATE, T84_RED_BIT_MASK) :
             twi.SendByte(T84_I2C_SLAVE_ADDRESS, T84_REG_LED_STATE, 0);
          SWITCH_PAST_STATE ^= _BV(SWITCH_C);
-         _delay_ms(1);
+         //_delay_ms(1);
       }
       if(change & _BV(SWITCH_ZONE))
       {
          SWITCH_PAST_STATE ^= _BV(SWITCH_ZONE);
-         _delay_ms(1);
+         //_delay_ms(1);
       }
       if(change & _BV(SWITCH_BACK))
       {
          SWITCH_PAST_STATE ^= _BV(SWITCH_BACK);
-         _delay_ms(1);
+         //_delay_ms(1);
       }
       if(change & _BV(SWITCH_MUSIC))
       {
          SWITCH_PAST_STATE ^= _BV(SWITCH_MUSIC);
-         _delay_ms(1);
+         //_delay_ms(1);
       }
       if(change & _BV(SWITCH_ENTER))
       {
          SWITCH_PAST_STATE ^= _BV(SWITCH_ENTER);
-         _delay_ms(1);
+         //_delay_ms(1);
       }
       if(change & _BV(SWITCH_REWIND))
       {
@@ -266,14 +271,14 @@ void PCInterrupts::CheckSwitchStates()
          {
             // Simulate a scroll -
             twi.SendByte(T84_I2C_SLAVE_ADDRESS, T84_REG_I2C_TEST, 110);
-            _delay_ms(1);
+            //_delay_ms(1);
          }
          SWITCH_PAST_STATE ^= _BV(SWITCH_REWIND);
       }
       if(change & _BV(SWITCH_PLAY_PAUSE))
       {
          SWITCH_PAST_STATE ^= _BV(SWITCH_PLAY_PAUSE);
-         _delay_ms(1);
+         //_delay_ms(1);
       }
       if(change & _BV(SWITCH_FORWARD))
       {
@@ -281,7 +286,7 @@ void PCInterrupts::CheckSwitchStates()
          {
             // Simulate a scroll +
             twi.SendByte(T84_I2C_SLAVE_ADDRESS, T84_REG_I2C_TEST, 150);
-            _delay_ms(1);
+            //_delay_ms(1);
          }
          SWITCH_PAST_STATE ^= _BV(SWITCH_FORWARD);
       }

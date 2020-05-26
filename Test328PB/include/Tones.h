@@ -38,9 +38,9 @@ class Tones
       void Stop();
       void Flush();
       void Sleep();
+
    protected:
    private:
-
       class queuedNote
       {
          public:
