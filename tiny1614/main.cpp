@@ -25,6 +25,8 @@ uint8_t reg_size = sizeof(i2c_regs);
 
 volatile uint32_t whiteLEDHold = 0;
 
+volatile uint8_t messageReceived = 0;
+
 uint32_t now = 0;
 
 void SignalUpdate()
@@ -33,7 +35,7 @@ void SignalUpdate()
    SCROLLINT_ON;
    SCROLLINT_OFF;
    //Serial.println("I");
-   _delay_ms(1);
+   _delay_us(100);
    SCROLLINT_ON;
 }
 
@@ -65,12 +67,6 @@ void UpdateRegisters()
          //}
 		break;
 		case(T84_REG_I2C_TEST):
-			for(uint8_t i = 0; i < 4; ++i)
-			{
-            REDLED_TOGGLE;
-				//RED_PIN.Toggle();
-				_delay_ms(10);
-			}
          if(i2c_regs[reg_position] > 128)
          {
 			   i2c_regs[T84_REG_SCROLL_CLICKS] += 1;
@@ -79,7 +75,6 @@ void UpdateRegisters()
          {
 			   i2c_regs[T84_REG_SCROLL_CLICKS] -= 1;
          }
-         SignalUpdate();
 		break;
 		default:
 		break;
@@ -93,7 +88,6 @@ void onRequest()
    {
       scroll_send = 0;
       WireS.send(i2c_regs[T84_REG_SCROLL_CLICKS]);
-      REDLED_TOGGLE;
       i2c_regs[T84_REG_SCROLL_CLICKS] = 0x80;
    }
    else
@@ -153,14 +147,14 @@ void CheckWhiteLEDLevel(uint32_t now)
 		   TCA0.SINGLE.CMP0 += (delta > 0 ? 1 : -1);
 		   if(TCA0.SINGLE.CMP0 == 255)
 		   {
-			   //WHITE_PWM_FULL;
 			   pwm.setLevel(255);
-			   //whiteLEDHold = now + 5000;
+            // Start the timeout counter
+            // when reaching full brightness.
+			   whiteLEDHold = now + 4000;
 		   }
 		   else if(TCA0.SINGLE.CMP0 == 0)
 		   {
 			   pwm.setLevel(0);
-			   //WHITE_PWM_OFF;
 		   }
 		}
 	}
@@ -217,13 +211,18 @@ void InitializeIO()
 {
    // Initialize IO
     PORTA.DIRSET = REDLEDbm | GREENLEDbm;
+    PORTB.DIRSET |= ORANGELEDbm;
     REDLED_OFF;
     GREENLED_OFF;
+    ORANGELED_ON;
     SCROLLINT_DIR_OUT;SCROLLINT_ON;
+
+    // Restore the state when waking up.
+   i2c_regs[T84_REG_SLEEP] = 0;
 
    InitializeClock();
 
-   Serial.begin(115200);
+   //Serial.begin(115200);
 
    WireS.setOnReceive(onReceive);
    WireS.setOnRequest(onRequest);
@@ -281,9 +280,9 @@ int main(void)
 
    InitializeIO();
 
-    uint32_t s = 0;
-    uint8_t x = 0;
-    uint8_t d = 1;
+    //uint32_t s = 0;
+    //uint8_t x = 0;
+    //uint8_t d = 1;
 
     //REDLED_ON;
     //GREENLED_OFF;
@@ -291,6 +290,23 @@ int main(void)
     while (1) 
     {
        now = timer0.millis();
+
+       // If there are clicks pending from the scroll wheel
+       // then send them.
+		 if(i2c_regs[T84_REG_SCROLL_CLICKS] != 128)// && scroll_send == 0)
+       {
+			 for(uint8_t i = 0; i < 4; ++i)
+          {
+             REDLED_TOGGLE;
+             _delay_ms(10);
+          }
+          SignalUpdate();
+       }
+       else if(i2c_regs[T84_REG_SLEEP] != 0)
+       {
+          //Sleep();
+          //SignalUpdate();
+       }
        //if(now % 1000 == 0)
        //{
           //if(now > s)

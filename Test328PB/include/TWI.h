@@ -33,22 +33,22 @@
 
 class TWI
 {
-   //variables
-   public:
-   protected:
-   private:
-
    //functions
    public:
       TWI();
       ~TWI();
 
-      void Init();
+      typedef enum { e100000 = 100000, e400000 = 400000 } SpeedT;
+      void Init(SpeedT speed = e100000);
+      void Speed(SpeedT s);
       uint8_t SendByte(uint8_t address, uint16_t reg, uint8_t data);
       uint8_t SendWord(uint8_t address, uint16_t reg, uint16_t data);
+      uint8_t SendBlock(uint8_t address, uint16_t reg, const uint8_t *data, uint32_t len);
+      //uint8_t Print(uint8_t address, uint16_t reg, const char *data, uint32_t len);
       uint8_t ReceiveByte(uint8_t device, uint16_t reg, uint8_t &recvdData);
       uint8_t ReceiveWord(uint8_t device, uint16_t reg, uint16_t &rcvdData);
       void Sleep();
+      uint8_t Ping(uint8_t address);
 
    protected:
    private:

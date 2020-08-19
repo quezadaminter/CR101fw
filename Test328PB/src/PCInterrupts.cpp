@@ -13,6 +13,8 @@
 #include "TWI.h"
 #include "Messages.h"
 #include "Registers.h"
+#include "PinMap.h"
+#include "Timer1.h"
 
 PCInterrupts ints;
 
@@ -36,6 +38,19 @@ PCInterrupts::~PCInterrupts()
 
 void PCInterrupts::Init()
 {
+   // Inputs with pullups.
+   DDRB  &= ~(SW_PLAYbm | SW_REWbm | SW_Cbm | SW_Bbm | SW_Abm | SW_VOL_DNbm);
+   PORTB |=  (SW_PLAYbm | SW_REWbm | SW_Cbm | SW_Bbm | SW_Abm | SW_VOL_DNbm);
+
+   DDRC  &= ~(SW_ENTERbm | SW_ZONESbm | SW_RETURNbm);
+   PORTC |=  (SW_ENTERbm | SW_ZONESbm | SW_RETURNbm);
+
+   DDRD  &= ~(SCROLL_INTbm | SW_FORWARDbm);
+   PORTD |=  (SCROLL_INTbm | SW_FORWARDbm);
+
+   DDRE  &= ~(SW_MUSICbm | SW_VOL_UPbm | SW_MUTEbm);
+   PORTE |=  (SW_MUSICbm | SW_VOL_UPbm | SW_MUTEbm);
+
 // PCIE0 - PORTB
 // PCIE1 - PORTC
 // PCIE2 - PORTD
@@ -47,27 +62,28 @@ void PCInterrupts::Init()
 
            // Select the pins that will listen to interrupts
            // PORTE
-	PCMSK3 = (1 << PCINT27) | // Pin change enable mask 27
-            (1 << PCINT26);  // Pin change enable mask 26
+	PCMSK3 = (SW_MUSICbm  |  // Pin change enable mask 24
+             SW_VOL_UPbm |  // Pin change enable mask 26
+             SW_MUTEbm);    // Pin change enable mask 27
 
            // PORTD
-	PCMSK2 = (1 << PCINT17) | // Pin change enable mask 17
-	         (1 << PCINT19) |  // Pin change enable mask 20
-	         (1 << PCINT20) |  // Pin change enable mask 20
-	         (1 << PCINT23);  // Pin change enable mask 23
+	PCMSK2 = (SCROLL_INTbm | // Pin change enable mask 17
+	          SW_FORWARDbm);  // Pin change enable mask 23
 
             // PORTC
-	PCMSK1 = (1 << PCINT8) |  // Pin change enable mask 8
-	         (1 << PCINT10) | // Pin change enable mask 10
-	         (1 << PCINT11);  // Pin change enable mask 11
+	PCMSK1 = (SW_ENTERbm |  // Pin change enable mask 8
+	          SW_ZONESbm |  // Pin change enable mask 10
+	          SW_RETURNbm); // Pin change enable mask 11
 
             // PORTB
-	PCMSK0 = (1 << PCINT0) | // Pin change enable mask 0
-	         (1 << PCINT1) | // Pin change enable mask 1
-	         (1 << PCINT2) | // Pin change enable mask 2
-	         (1 << PCINT3) | // Pin change enable mask 3
-	         (1 << PCINT4) | // Pin change enable mask 4
-	         (1 << PCINT5);  // Pin change enable mask 5
+	PCMSK0 = (SW_PLAYbm | // Pin change enable mask 0
+	          SW_REWbm  | // Pin change enable mask 1
+	          SW_Cbm    | // Pin change enable mask 2
+	          SW_Bbm    | // Pin change enable mask 3
+	          SW_Abm    | // Pin change enable mask 4
+	          SW_VOL_DNbm);  // Pin change enable mask 5
+
+   LAST_EVENT_TIME = t1.millis();
 }
 
 ISR(PCINT0_vect)
@@ -75,34 +91,38 @@ ISR(PCINT0_vect)
    // PORTB
 	/* Insert your pin change 0 interrupt handling code here */
    // Interrupts 0 to 7
-   uint8_t changedbits;
-
-   changedbits = PINB ^ pcint0_history;
+   uint8_t changedbits = PINB ^ pcint0_history;
    pcint0_history = PINB;
    
-   if(changedbits & _BV(INT_PLAY_PAUSE))
+   if(changedbits & SW_PLAYbm)
    {
-      IS_PRESSED(PINB, INT_PLAY_PAUSE) ? (SWITCH_STATES &= ~(_BV(SWITCH_PLAY_PAUSE))) : (SWITCH_STATES |= _BV(SWITCH_PLAY_PAUSE));
+      //IS_PRESSED(PINB, INT_PLAY_PAUSE) ? (SWITCH_STATES &= ~(_BV(SWITCH_PLAY_PAUSE))) : (SWITCH_STATES |= _BV(SWITCH_PLAY_PAUSE));
+      SW_PLAY_IS_HIGH ? (SWITCH_STATES &= ~(_BV(SWITCH_PLAY_PAUSE))) : (SWITCH_STATES |= _BV(SWITCH_PLAY_PAUSE));
    }
-   else if(changedbits & _BV(INT_REWIND))
+   else if(changedbits & SW_REWbm)
    {
-      IS_PRESSED(PINB, INT_REWIND) ? (SWITCH_STATES &= ~(_BV(SWITCH_REWIND))) : (SWITCH_STATES |= _BV(SWITCH_REWIND));
+      //IS_PRESSED(PINB, INT_REWIND) ? (SWITCH_STATES &= ~(_BV(SWITCH_REWIND))) : (SWITCH_STATES |= _BV(SWITCH_REWIND));
+      SW_REW_IS_HIGH ? (SWITCH_STATES &= ~(_BV(SWITCH_REWIND))) : (SWITCH_STATES |= _BV(SWITCH_REWIND));
    }
-   else if(changedbits & _BV(INT_C))
+   else if(changedbits & SW_Cbm)
    {
-      IS_PRESSED(PINB, INT_C) ? (SWITCH_STATES &= ~(_BV(SWITCH_C))) : (SWITCH_STATES |= _BV(SWITCH_C));
+      //IS_PRESSED(PINB, INT_C) ? (SWITCH_STATES &= ~(_BV(SWITCH_C))) : (SWITCH_STATES |= _BV(SWITCH_C));
+      SW_C_IS_HIGH ? (SWITCH_STATES &= ~(_BV(SWITCH_C))) : (SWITCH_STATES |= _BV(SWITCH_C));
    }
-   else if(changedbits & _BV(INT_B))
+   else if(changedbits & SW_Bbm)
    {
-      IS_PRESSED(PINB, INT_B) ? (SWITCH_STATES &= ~(_BV(SWITCH_B))) : (SWITCH_STATES |= _BV(SWITCH_B));
+      //IS_PRESSED(PINB, INT_B) ? (SWITCH_STATES &= ~(_BV(SWITCH_B))) : (SWITCH_STATES |= _BV(SWITCH_B));
+      SW_B_IS_HIGH ? (SWITCH_STATES &= ~(_BV(SWITCH_B))) : (SWITCH_STATES |= _BV(SWITCH_B));
    }
-   else if(changedbits & _BV(INT_A))
+   else if(changedbits & SW_Abm)
    {
-      IS_PRESSED(PINB, INT_A) ? (SWITCH_STATES &= ~(_BV(SWITCH_A))) : (SWITCH_STATES |= _BV(SWITCH_A));
+      //IS_PRESSED(PINB, INT_A) ? (SWITCH_STATES &= ~(_BV(SWITCH_A))) : (SWITCH_STATES |= _BV(SWITCH_A));
+      SW_A_IS_HIGH ? (SWITCH_STATES &= ~(_BV(SWITCH_A))) : (SWITCH_STATES |= _BV(SWITCH_A));
    }
-   else if(changedbits & _BV(INT_VOL_DN))
+   else if(changedbits & SW_VOL_DNbm)
    {
-      IS_PRESSED(PINB, INT_VOL_DN) ? (SWITCH_STATES &= ~(_BV(SWITCH_VOL_DN))) : (SWITCH_STATES |= _BV(SWITCH_VOL_DN));
+      //IS_PRESSED(PINB, INT_VOL_DN) ? (SWITCH_STATES &= ~(_BV(SWITCH_VOL_DN))) : (SWITCH_STATES |= _BV(SWITCH_VOL_DN));
+      SW_VOL_DN_IS_HIGH ? (SWITCH_STATES &= ~(_BV(SWITCH_VOL_DN))) : (SWITCH_STATES |= _BV(SWITCH_VOL_DN));
    }
 }
 
@@ -111,22 +131,23 @@ ISR(PCINT1_vect)
    // PORTC
 	/* Insert your pin change 1 interrupt handling code here */
 	// Interrupts 8 to 14
-   uint8_t changedbits;
-
-   changedbits = PINC ^ pcint1_history;
+   uint8_t changedbits = PINC ^ pcint1_history;
    pcint1_history = PINC;
    
-   if(changedbits & _BV(INT_ENTER))
+   if(changedbits & SW_ENTERbm)
    {
-      IS_PRESSED(PINC, INT_ENTER) ? (SWITCH_STATES &= ~(_BV(SWITCH_ENTER))) : (SWITCH_STATES |= _BV(SWITCH_ENTER));
+      //IS_PRESSED(PINC, INT_ENTER) ? (SWITCH_STATES &= ~(_BV(SWITCH_ENTER))) : (SWITCH_STATES |= _BV(SWITCH_ENTER));
+      SW_ENTER_IS_HIGH ? (SWITCH_STATES &= ~(_BV(SWITCH_ENTER))) : (SWITCH_STATES |= _BV(SWITCH_ENTER));
    }
-   else if(changedbits & _BV(INT_ZONE))
+   else if(changedbits & SW_ZONESbm)
    {
-      IS_PRESSED(PINC, INT_ZONE) ? (SWITCH_STATES &= ~(_BV(SWITCH_ZONE))) : (SWITCH_STATES |= _BV(SWITCH_ZONE));
+      //IS_PRESSED(PINC, INT_ZONE) ? (SWITCH_STATES &= ~(_BV(SWITCH_ZONE))) : (SWITCH_STATES |= _BV(SWITCH_ZONE));
+      SW_ZONES_IS_HIGH ? (SWITCH_STATES &= ~(_BV(SWITCH_ZONE))) : (SWITCH_STATES |= _BV(SWITCH_ZONE));
    }
-   else if(changedbits & _BV(INT_BACK))
+   else if(changedbits & SW_RETURNbm)
    {
-      IS_PRESSED(PINC, INT_BACK) ? (SWITCH_STATES &= ~(_BV(SWITCH_BACK))) : (SWITCH_STATES |= _BV(SWITCH_BACK));
+      //IS_PRESSED(PINC, INT_BACK) ? (SWITCH_STATES &= ~(_BV(SWITCH_BACK))) : (SWITCH_STATES |= _BV(SWITCH_BACK));
+      SW_RETURN_IS_HIGH ? (SWITCH_STATES &= ~(_BV(SWITCH_BACK))) : (SWITCH_STATES |= _BV(SWITCH_BACK));
    }
 }
 
@@ -135,15 +156,21 @@ ISR(PCINT2_vect)
    // PORTD
 	/* Insert your pin change 2 interrupt handling code here */
 	// Interrupts 16 to 23
-   uint8_t changedbits;
-
-   changedbits = PIND ^ pcint2_history;
+   uint8_t changedbits = PIND ^ pcint2_history;
    pcint2_history = PIND;
    
-   if(changedbits & _BV(T84_DATA_READY_INT))
+   if(changedbits & SCROLL_INTbm)
    {
       //IS_PRESSED(PIND, T84_DATA_READY_INT) ? (SWITCH_STATES &= ~(_BV(SWITCH_SCROLL_EVENT))) : (SWITCH_STATES |= _BV(SWITCH_SCROLL_EVENT));
-      if(IS_RELEASED(PIND, T84_DATA_READY_INT))
+      //if(IS_RELEASED(PIND, T84_DATA_READY_INT))
+      //{
+         //SWITCH_STATES |= _BV(SWITCH_SCROLL_EVENT);
+      //}
+      //else
+      //{
+         //SWITCH_STATES &= ~(_BV(SWITCH_SCROLL_EVENT));
+      //}
+      if(SCROLL_INT_IS_HIGH)
       {
          SWITCH_STATES |= _BV(SWITCH_SCROLL_EVENT);
       }
@@ -152,13 +179,10 @@ ISR(PCINT2_vect)
          SWITCH_STATES &= ~(_BV(SWITCH_SCROLL_EVENT));
       }
    }
-   else if(changedbits & _BV(INT_MUSIC))
+   else if(changedbits & SW_FORWARDbm)
    {
-      IS_PRESSED(PIND, INT_MUSIC) ? (SWITCH_STATES &= ~(_BV(SWITCH_MUSIC))) : (SWITCH_STATES |= _BV(SWITCH_MUSIC));
-   }
-   else if(changedbits & _BV(INT_FORWARD))
-   {
-      IS_PRESSED(PIND, INT_FORWARD) ? (SWITCH_STATES &= ~(_BV(SWITCH_FORWARD))) : (SWITCH_STATES |= _BV(SWITCH_FORWARD));
+      //IS_PRESSED(PIND, INT_FORWARD) ? (SWITCH_STATES &= ~(_BV(SWITCH_FORWARD))) : (SWITCH_STATES |= _BV(SWITCH_FORWARD));
+      SW_FORWARD_IS_HIGH ? (SWITCH_STATES &= ~(_BV(SWITCH_FORWARD))) : (SWITCH_STATES |= _BV(SWITCH_FORWARD));
    }
 }
 
@@ -167,18 +191,23 @@ ISR(PCINT3_vect)
    // PORTE
 	/* Insert your pin change 3 interrupt handling code here */
 	// Interrupts 24 to 27
-   uint8_t changedbits;
-
-   changedbits = PINE ^ pcint3_history;
+   uint8_t changedbits = PINE ^ pcint3_history;
    pcint3_history = PINE;
    
-   if(changedbits & _BV(INT_VOL_UP))
+   if(changedbits & SW_MUSICbm)
    {
-      IS_PRESSED(PINE, INT_VOL_UP) ? (SWITCH_STATES &= ~(_BV(SWITCH_VOL_UP))) : (SWITCH_STATES |= _BV(SWITCH_VOL_UP));
+      //IS_PRESSED(PINE, INT_VOL_UP) ? (SWITCH_STATES &= ~(_BV(SWITCH_VOL_UP))) : (SWITCH_STATES |= _BV(SWITCH_VOL_UP));
+      SW_MUSIC_IS_HIGH ? (SWITCH_STATES &= ~(_BV(SWITCH_MUSIC))) : (SWITCH_STATES |= _BV(SWITCH_MUSIC));
    }
-   else if(changedbits & _BV(INT_MUTE))
+   else if(changedbits & SW_VOL_UPbm)
    {
-      IS_PRESSED(PINE, INT_MUTE) ? (SWITCH_STATES &= ~(_BV(SWITCH_MUTE))) : (SWITCH_STATES |= _BV(SWITCH_MUTE));
+      //IS_PRESSED(PINE, INT_VOL_UP) ? (SWITCH_STATES &= ~(_BV(SWITCH_VOL_UP))) : (SWITCH_STATES |= _BV(SWITCH_VOL_UP));
+      SW_VOL_UP_IS_HIGH ? (SWITCH_STATES &= ~(_BV(SWITCH_VOL_UP))) : (SWITCH_STATES |= _BV(SWITCH_VOL_UP));
+   }
+   else if(changedbits & SW_MUTEbm)
+   {
+      //IS_PRESSED(PINE, INT_MUTE) ? (SWITCH_STATES &= ~(_BV(SWITCH_MUTE))) : (SWITCH_STATES |= _BV(SWITCH_MUTE));
+      SW_MUTE_IS_HIGH ? (SWITCH_STATES &= ~(_BV(SWITCH_MUTE))) : (SWITCH_STATES |= _BV(SWITCH_MUTE));
    }
 }
 
@@ -193,109 +222,123 @@ void PCInterrupts::CheckSwitchStates()
 
    if(change)
    {
-      DDRD |= _BV(5);
-      PORTD ^= _BV(5);
+      LAST_EVENT_TIME = t1.millis();
+
       if(twi.SendByte(T84_I2C_SLAVE_ADDRESS, T84_REG_WHITE_PWM_VALUE, 255) == ERROR)
       {
          tones.Play(A(3), 50);
          tones.Play(A(2), 50);
-         //_delay_ms(1);
       }
       else
       {
-         //tones.Play(E(3), 20);
+         tones.Play(E(3), 200);
+      }
+
+      // Forward the switch states to the PI
+      if(twi.SendWord(PI_I2C_ADDRESS, PI_INPUT_REGISTER_H, switch_states) == ERROR);
+      {
+         tones.Play(G(1), 100);
       }
 
       if(change & _BV(SWITCH_MUTE))
       {
+         //if(IS_PRESSED(switch_states, SWITCH_A))
+         //{
+            //T84_LED_STATES |= T84_GREEN_BIT_MASK;
+            //twi.SendByte(T84_I2C_SLAVE_ADDRESS, T84_REG_LED_STATE, T84_LED_STATES);
+         //}
+         //else
+         //{
+            //T84_LED_STATES &= ~T84_GREEN_BIT_MASK;
+            //twi.SendByte(T84_I2C_SLAVE_ADDRESS, T84_REG_LED_STATE, T84_LED_STATES);
+         //}
          SWITCH_PAST_STATE ^= _BV(SWITCH_MUTE);
-         //_delay_ms(1);
       }
       if(change & _BV(SWITCH_VOL_UP))
       {
+         //if(IS_PRESSED(switch_states, SWITCH_A))
+         //{
+            //T84_LED_STATES |= T84_ORANGE_BIT_MASK;
+            //twi.SendByte(T84_I2C_SLAVE_ADDRESS, T84_REG_LED_STATE, T84_LED_STATES);
+         //}
+         //else
+         //{
+            //T84_LED_STATES &= ~T84_ORANGE_BIT_MASK;
+            //twi.SendByte(T84_I2C_SLAVE_ADDRESS, T84_REG_LED_STATE, T84_LED_STATES);
+         //}
          SWITCH_PAST_STATE ^= _BV(SWITCH_VOL_UP);
-         //_delay_ms(1);
       }
       if(change & _BV(SWITCH_VOL_DN))
       {
          SWITCH_PAST_STATE ^= _BV(SWITCH_VOL_DN);
-         //_delay_ms(1);
       }
       if(change & _BV(SWITCH_A))
       {
-         IS_PRESSED(switch_states, SWITCH_A) ?
-            twi.SendByte(T84_I2C_SLAVE_ADDRESS, T84_REG_LED_STATE, T84_GREEN_BIT_MASK) :
-            twi.SendByte(T84_I2C_SLAVE_ADDRESS, T84_REG_LED_STATE, 0);
          SWITCH_PAST_STATE ^= _BV(SWITCH_A);
-         //_delay_ms(1);
       }
       if(change & _BV(SWITCH_B))
       {
-         IS_RELEASED(switch_states, SWITCH_B) ?
-            twi.SendByte(T84_I2C_SLAVE_ADDRESS, T84_REG_SLEEP, 0xFF) :
-            0;
+         //IS_RELEASED(switch_states, SWITCH_B) ?
+            //twi.SendByte(T84_I2C_SLAVE_ADDRESS, T84_REG_SLEEP, 0xFF) :
+            //0;
          SWITCH_PAST_STATE ^= _BV(SWITCH_B);
-         //_delay_ms(1);
       }
       if(change & _BV(SWITCH_C))
       {
-         IS_PRESSED(switch_states, SWITCH_C) ?
-            twi.SendByte(T84_I2C_SLAVE_ADDRESS, T84_REG_LED_STATE, T84_RED_BIT_MASK) :
-            twi.SendByte(T84_I2C_SLAVE_ADDRESS, T84_REG_LED_STATE, 0);
+         //if(IS_PRESSED(switch_states, SWITCH_C))
+         //{
+            //T84_LED_STATES |= T84_RED_BIT_MASK;
+            //twi.SendByte(T84_I2C_SLAVE_ADDRESS, T84_REG_LED_STATE, T84_LED_STATES);
+         //}
+         //else
+         //{
+            //T84_LED_STATES &= ~T84_RED_BIT_MASK;
+            //twi.SendByte(T84_I2C_SLAVE_ADDRESS, T84_REG_LED_STATE, T84_LED_STATES);
+         //}
          SWITCH_PAST_STATE ^= _BV(SWITCH_C);
-         //_delay_ms(1);
       }
       if(change & _BV(SWITCH_ZONE))
       {
          SWITCH_PAST_STATE ^= _BV(SWITCH_ZONE);
-         //_delay_ms(1);
       }
       if(change & _BV(SWITCH_BACK))
       {
          SWITCH_PAST_STATE ^= _BV(SWITCH_BACK);
-         //_delay_ms(1);
       }
       if(change & _BV(SWITCH_MUSIC))
       {
          SWITCH_PAST_STATE ^= _BV(SWITCH_MUSIC);
-         //_delay_ms(1);
       }
       if(change & _BV(SWITCH_ENTER))
       {
          SWITCH_PAST_STATE ^= _BV(SWITCH_ENTER);
-         //_delay_ms(1);
       }
       if(change & _BV(SWITCH_REWIND))
       {
-         if(IS_RELEASED(switch_states, SWITCH_REWIND))
-         {
-            // Simulate a scroll -
-            twi.SendByte(T84_I2C_SLAVE_ADDRESS, T84_REG_I2C_TEST, 110);
-            //_delay_ms(1);
-         }
+         //if(IS_RELEASED(switch_states, SWITCH_REWIND))
+         //{
+            //// Simulate a scroll -
+            //twi.SendByte(T84_I2C_SLAVE_ADDRESS, T84_REG_I2C_TEST, 110);
+         //}
          SWITCH_PAST_STATE ^= _BV(SWITCH_REWIND);
       }
       if(change & _BV(SWITCH_PLAY_PAUSE))
       {
          SWITCH_PAST_STATE ^= _BV(SWITCH_PLAY_PAUSE);
-         //_delay_ms(1);
       }
       if(change & _BV(SWITCH_FORWARD))
       {
-         if(IS_RELEASED(switch_states, SWITCH_FORWARD))
-         {
-            // Simulate a scroll +
-            twi.SendByte(T84_I2C_SLAVE_ADDRESS, T84_REG_I2C_TEST, 150);
-            //_delay_ms(1);
-         }
+         //if(IS_RELEASED(switch_states, SWITCH_FORWARD))
+         //{
+            //// Simulate a scroll +
+            //twi.SendByte(T84_I2C_SLAVE_ADDRESS, T84_REG_I2C_TEST, 150);
+         //}
          SWITCH_PAST_STATE ^= _BV(SWITCH_FORWARD);
       }
       if(change & _BV(SWITCH_SCROLL_EVENT))
       {
          if(IS_PRESSED(switch_states, SWITCH_SCROLL_EVENT))
          {
-            DDRD |= _BV(0);
-            PORTD ^= _BV(0);
             // Turn it off, only act on a falling edge
             // of the interrupt.
             //switch_states ^= _BV(SWITCH_SCROLL_EVENT);
@@ -304,6 +347,8 @@ void PCInterrupts::CheckSwitchStates()
             if(twi.ReceiveByte(T84_I2C_SLAVE_ADDRESS, T84_REG_SCROLL_CLICKS, c) == SUCCESS)
             {
                int8_t d = c - 128;
+               // Forward click count to PI
+               twi.SendByte(PI_I2C_ADDRESS, PI_SCROLL_CLICKS_REGISTER, d);
                if(d > 0)
                {
                   tones.Play(F(4), 20);
@@ -316,13 +361,21 @@ void PCInterrupts::CheckSwitchStates()
          }
          SWITCH_PAST_STATE ^= _BV(SWITCH_SCROLL_EVENT);
       }
-      //// Send the PI the switch event.
-      //I2C_0_write2ByteRegister(PI_I2C_ADDRESS, PI_EVENT_REGISTER, switch_states);
    }
-//   SWITCH_PAST_STATE = switch_states;
 }
 
 void PCInterrupts::Sleep()
 {
+   // Turn off pullups, leave interrupts running.
+   DDRB  &= ~(SW_PLAYbm | SW_REWbm | SW_Cbm | SW_Bbm | SW_Abm | SW_VOL_DNbm);
+   PORTB &= ~(SW_PLAYbm | SW_REWbm | SW_Cbm | SW_Bbm | SW_Abm | SW_VOL_DNbm);
 
+   DDRC  &= ~(SW_ENTERbm | SW_ZONESbm | SW_RETURNbm);
+   PORTC &= ~(SW_ENTERbm | SW_ZONESbm | SW_RETURNbm);
+
+   DDRD  &= ~(SCROLL_INTbm | SW_FORWARDbm);
+   PORTD &= ~(SCROLL_INTbm | SW_FORWARDbm);
+
+   DDRE  &= ~(SW_MUSICbm | SW_VOL_UPbm | SW_MUTEbm);
+   PORTE &= ~(SW_MUSICbm | SW_VOL_UPbm | SW_MUTEbm);
 }

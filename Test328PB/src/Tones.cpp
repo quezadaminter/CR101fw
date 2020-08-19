@@ -14,6 +14,7 @@
 #include <avr/eeprom.h>
 #include "Tones.h"
 #include "Timer1.h"
+#include "PinMap.h"
 
 Tones tones;
 
@@ -172,8 +173,13 @@ Tones::~Tones()
 
 void Tones::Init()
 {
-	DDRD |= _BV(6);
-	PORTD &= ~(_BV(PORTD6));
+   PRR0 &= ~(_BV(PRTIM0));
+	//DDRD |= _BV(6);
+	//PORTD &= ~(_BV(PORTD6));
+   // Output low.
+   BUZZER_DIR_OUT;
+   BUZZER_LOW;
+
 	// Set Timer0, mode CTC, toggle on compare, OCR0A sets limit, prescale 8 but will vary according to the table
 	TCCR0A = (1 << COM0A0) | (1 << WGM01);
 	TCCR0B= (1 << CS10);;
@@ -254,7 +260,9 @@ void Tones::Stop()
    TCCR0B &= ~((1<<CS02)|(1<<CS01)|(1<<CS00)); // stop the timer
    OCR0A = 0xFF;
    TCNT0 = 0;
-	PORTD &= ~(_BV(PORTD6)); // Make sure the port stays low to drain the mosfet gate.
+   // Stay low
+   BUZZER_LOW;
+	//PORTD &= ~(_BV(PORTD6)); // Make sure the port stays low to drain the mosfet gate.
 	tonePlaying = false;
 }
 
@@ -267,4 +275,9 @@ void Tones::Flush()
 void Tones::Sleep()
 {
    Flush();
+   // Input (Hi Z), no pullup.
+   BUZZER_LOW;
+   BUZZER_DIR_IN;
+
+   PRR0 |= _BV(PRTIM0);
 }

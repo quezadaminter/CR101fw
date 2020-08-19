@@ -21,7 +21,7 @@
 #  error TWI RX buffer size is not a power of 2
 #endif
 
-typedef void(* I2C_callback_byte)(uint8_t);
+typedef void(*I2C_callback_byte)(uint8_t);
 
 class TWI_S
 {

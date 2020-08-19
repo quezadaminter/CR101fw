@@ -23,9 +23,12 @@ class PCInterrupts
       void CheckSwitchStates();
       void Sleep();
 
+      uint32_t LastEventTime() const { return(LAST_EVENT_TIME); }
+
    protected:
    private:
       uint16_t SWITCH_PAST_STATE = 0;
+      uint32_t LAST_EVENT_TIME = 0;
 
       PCInterrupts( const PCInterrupts &c );
       PCInterrupts& operator=( const PCInterrupts &c );

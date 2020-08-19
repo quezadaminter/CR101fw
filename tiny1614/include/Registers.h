@@ -33,4 +33,11 @@ typedef enum
 #define  T84_RED_BIT_MASK (1 << T84_RED_BIT)
 #define  T84_GREEN_BIT_MASK (1 << T84_GREEN_BIT)
 
+#define REG_IDbm (1 << T84_REG_ID)
+#define REG_SYSTEMbm (1 << T84_REG_SYSTEM)
+#define REG_LED_STATEbm (1 << T84_REG_LED_STATE)
+#define REG_WHITE_PWMbm (1 << T84_REG_WHITE_PWM)
+#define REG_SCROLL_CLICKSbm (1 << T84_REG_SCROLL_CLICKS)
+#define REG_SLEEPbm (1 << T84_REG_SLEEP)
+#define REG_I2C_TESTbm (1 << T84_REG_SLEEP)
 #endif /* REGISTERS_H_ */

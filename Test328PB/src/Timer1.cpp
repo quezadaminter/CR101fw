@@ -82,7 +82,7 @@ uint32_t Timer1::millis()
 
 void Timer1::Sleep()
 {
-
+	PRR0 |= (1 << PRTIM1);
 }
 
 ISR(TIMER1_COMPA_vect)
