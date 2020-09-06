@@ -29,7 +29,7 @@
 #define DATA_BYTE_RECVD_NOT_ACK_RECVD 0x58
 
 #define ERROR 1
-#define SUCCESS (!ERROR)
+#define SUCCESS 0
 
 class TWI
 {

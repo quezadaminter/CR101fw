@@ -235,7 +235,7 @@ void PCInterrupts::CheckSwitchStates()
       }
 
       // Forward the switch states to the PI
-      if(twi.SendWord(PI_I2C_ADDRESS, PI_INPUT_REGISTER_H, switch_states) == ERROR);
+      if(twi.SendWord(PI_I2C_ADDRESS, PI_INPUT_REGISTER_H, switch_states) == ERROR)
       {
          tones.Play(G(1), 100);
       }

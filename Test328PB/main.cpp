@@ -393,7 +393,7 @@ int main(void)
     //testPWM.Active();
     testOrange.Active();
     batteryCheck.Active();
-    o3001.Active();
+    //o3001.Active();
     keyCombos.Active();
     //charger.Active();
     //scanI2C.Active();
@@ -411,7 +411,7 @@ int main(void)
 
       batteryCheck.RunAt(now);
       charger.RunOn(now);
-      o3001.RunOn(now);
+      //o3001.RunOn(now);
 
       scanI2C.RunOn(now);
       if(now - ints.LastEventTime() > SLEEP_TIMEOUT)
