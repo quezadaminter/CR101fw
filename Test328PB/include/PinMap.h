@@ -229,16 +229,18 @@
 #define PI_PWR_SWb 5
 #define PI_PWR_SWbm (1 << PI_PWR_SWb)
 #define PI_PWR_SW_DIR_OUT (DDRD |= PI_PWR_SWbm)
-#define PI_PWR_SW_DIR_IN (DDR##PI_PWR_SWp &= ~PI_PWR_SWbm)
+#define PI_PWR_SW_DIR_IN (DDRD &= ~PI_PWR_SWbm)
 #define PI_PWR_SW_HIGH (PORTD |= PI_PWR_SWbm)
-#define PI_PWR_SW_LOW (PORT##PI_PWR_SWp &= ~PI_PWR_SWbm)
+#define PI_PWR_SW_LOW (PORTD &= ~PI_PWR_SWbm)
+#define PI_PWR_SW_IS_HIGH (PIND & PI_PWR_SWbm)
+#define PI_PWR_SW_IS_LOW !(PIND & PI_PWR_SWbm)
 
 #define BUZZERp D
 #define BUZZERb 6
 #define BUZZERbm (1 << BUZZERb)
 #define BUZZER_DIR_OUT (DDRD |= BUZZERbm)
 #define BUZZER_DIR_IN (DDRD &= ~BUZZERbm)
-#define BUZZER_HIGH (PORT##BUZZERp |= BUZZERbm)
+#define BUZZER_HIGH (PORTD |= BUZZERbm)
 #define BUZZER_LOW (PORTD &= ~BUZZERbm)
 
 #endif /* PINMAP_H_ */

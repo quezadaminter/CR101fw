@@ -82,3 +82,13 @@ void Timeout::Active(bool a)
 {
    active = a;
 }
+
+void Timeout::Init(uint32_t tk)
+{
+   tick = tk;
+}
+
+uint16_t Timeout::Step() const
+{
+   return(step);
+}

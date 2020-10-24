@@ -38,6 +38,7 @@ class Tones
       void Stop();
       void Flush();
       void Sleep();
+      void Test();
 
    protected:
    private:

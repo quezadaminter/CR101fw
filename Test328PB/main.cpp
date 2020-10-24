@@ -35,12 +35,6 @@ uint8_t T84_LED_STATES = 0x00;
 #define DEEP_SLEEP_MASK (1 << 1)
 uint8_t sleepState = 0;
 
-#define REBOOT_SYSTEM_KEY_MASK ((1 << SWITCH_MUTE) | (1 << SWITCH_MUSIC))
-#define SHUTDOWN_PI_KEY_MASK ((1 << SWITCH_MUTE) | (1 << SWITCH_ZONE))
-#define REBOOT_TIMEOUT 6
-#define SHUTDOWN_TIMEOUT 10
-uint8_t rebootTimer = 0, shutdownTimer = 0;
-
 void WDTInit()
 {
    // Clear WDT reset flag if it was set
@@ -282,37 +276,6 @@ void CheckOPT3001()
    twi.SendWord(PI_I2C_ADDRESS, PI_DEBUG_WORD_REGISTER_H, mid);
 }
 
-void CheckKeyCombinations()
-{
-   if(SWITCH_STATES & REBOOT_SYSTEM_KEY_MASK && (PI_EVENTS_REGISTER & PI_EVENT_REBOOT_BIT) == false)
-   {
-      ++rebootTimer;
-      if(rebootTimer > REBOOT_TIMEOUT)
-      {
-         PI_SET_REBOOT(PI_EVENTS_REGISTER);
-         twi.SendByte(PI_I2C_ADDRESS, PI_EVENT_REGISTER, PI_EVENTS_REGISTER);
-      }
-   }
-   else
-   {
-      rebootTimer = 0;
-   }
-
-   if(SWITCH_STATES & SHUTDOWN_PI_KEY_MASK && (PI_EVENTS_REGISTER & PI_EVENT_SHUTDOWN_BIT) == false)
-   {
-      ++shutdownTimer;
-      if(shutdownTimer > SHUTDOWN_TIMEOUT)
-      {
-         PI_SET_SHUTDOWN(PI_EVENTS_REGISTER);
-         twi.SendByte(PI_I2C_ADDRESS, PI_EVENT_REGISTER, PI_EVENTS_REGISTER);
-      }
-   }
-   else
-   {
-      shutdownTimer = 0;
-   }
-}
-
 uint8_t s = 0;
 void Test()
 {
@@ -380,7 +343,6 @@ Timeout charger(0, 2000, CheckChargerStatus);
 Timeout batteryCheck(0, 6000, CheckBatteryLevel);
 Timeout scanI2C(0, 5000, ScanI2C);
 Timeout o3001(0, 4000, CheckOPT3001);
-Timeout keyCombos(0, 1000, CheckKeyCombinations);
 
 int main(void)
 {
@@ -394,9 +356,14 @@ int main(void)
     testOrange.Active();
     batteryCheck.Active();
     //o3001.Active();
-    keyCombos.Active();
     //charger.Active();
     //scanI2C.Active();
+
+    //tones.Test();
+
+    // Synchronize state with display
+    PI_CLEAR_SSR(PI_EVENTS_REGISTER);
+    twi.SendByte(PI_I2C_ADDRESS, PI_EVENT_REGISTER, PI_EVENTS_REGISTER);
     while (1) 
     {
       now = t1.millis();
@@ -418,27 +385,28 @@ int main(void)
       {
          if(now - ints.LastEventTime() > DEEP_SLEEP_TIMEOUT)
          {
-            sleepState = 0;
-            sleepState |= DEEP_SLEEP_MASK;
-            //Sleep();
-            PI_SET_SHUTDOWN(PI_EVENTS_REGISTER);
-            PI_EVENT_SET_CHARGER_DISCONNECTED(PI_EVENTS_REGISTER);
+            //sleepState = 0;
+            //sleepState |= DEEP_SLEEP_MASK;
+            ////Sleep();
+            //PI_SET_SHUTDOWN(PI_EVENTS_REGISTER);
+            //PI_EVENT_SET_CHARGER_DISCONNECTED(PI_EVENTS_REGISTER);
          }
-         else
+         else if((PI_EVENTS_REGISTER & PI_EVENT_SLEEP_BIT) == false)
          {
             PI_SET_SLEEP(PI_EVENTS_REGISTER);
             sleepState = 0;
             sleepState |= SLEEP_MASK;
+            twi.SendByte(PI_I2C_ADDRESS, PI_EVENT_REGISTER, PI_EVENTS_REGISTER);
             //LCD_OFF();
          }
       }
-      else
+      else if(PI_EVENTS_REGISTER & (PI_EVENT_SLEEP_BIT | PI_EVENT_SHUTDOWN_BIT))
       {
          PI_CLEAR_SSR(PI_EVENTS_REGISTER);
+         twi.SendByte(PI_I2C_ADDRESS, PI_EVENT_REGISTER, PI_EVENTS_REGISTER);
       }
 
       //CheckScrollClicks();
-		keyCombos.RunOn(now);
       //CheckSleepTimer(now);
       tones.Update(now);
 

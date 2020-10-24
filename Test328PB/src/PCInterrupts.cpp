@@ -15,6 +15,7 @@
 #include "Registers.h"
 #include "PinMap.h"
 #include "Timer1.h"
+#include "Timeout.h"
 
 PCInterrupts ints;
 
@@ -25,6 +26,14 @@ uint8_t pcint3_history = 0;
 
 volatile bool scrollEventDetected = false;
 uint16_t SWITCH_STATES = 0;
+
+void PiPowerToggleHandler();
+#define SHUTDOWN_PI_KEY_MASK ((1 << SWITCH_MUTE) | (1 << SWITCH_ZONE))
+Timeout PowerToggle(0, 5000, PiPowerToggleHandler);
+
+void PiRebootToggleHandler();
+#define REBOOT_SYSTEM_KEY_MASK ((1 << SWITCH_MUTE) | (1 << SWITCH_MUSIC))
+Timeout RebootToggle(0, 5000, PiRebootToggleHandler);
 
 // default constructor
 PCInterrupts::PCInterrupts()
@@ -82,6 +91,11 @@ void PCInterrupts::Init()
 	          SW_Bbm    | // Pin change enable mask 3
 	          SW_Abm    | // Pin change enable mask 4
 	          SW_VOL_DNbm);  // Pin change enable mask 5
+
+   pcint0_history = PINB & PCMSK0;
+   pcint1_history = PINC & PCMSK1;
+   pcint2_history = PIND & PCMSK2;
+   pcint3_history = PINE & PCMSK3;
 
    LAST_EVENT_TIME = t1.millis();
 }
@@ -211,6 +225,35 @@ ISR(PCINT3_vect)
    }
 }
 
+void PiPowerToggleHandler()
+{
+   if(PI_PWR_SW_IS_HIGH)
+   {
+      // Turn it off
+      PI_PWR_SW_LOW;
+      tones.Play(F(5), 100);
+      tones.Play(F(3), 100);
+   }
+   else
+   {
+      // Turn it on
+      PI_PWR_SW_HIGH;
+      tones.Play(F(3), 100);
+      tones.Play(F(5), 100);
+   }
+   PowerToggle.Active(false);
+}
+
+void PiRebootToggleHandler()
+{
+   PI_SET_REBOOT(PI_EVENTS_REGISTER);
+   twi.SendByte(PI_I2C_ADDRESS, PI_EVENT_REGISTER, PI_EVENTS_REGISTER);
+   tones.Play(F(3), 100);
+   tones.Play(F(5), 100);
+   tones.Play(F(3), 100);
+   RebootToggle.Active(false);
+}
+
 void PCInterrupts::CheckSwitchStates()
 {
    uint16_t switch_states = 0;
@@ -224,143 +267,143 @@ void PCInterrupts::CheckSwitchStates()
    {
       LAST_EVENT_TIME = t1.millis();
 
+      // Play a tone to signal success or failure.
       if(twi.SendByte(T84_I2C_SLAVE_ADDRESS, T84_REG_WHITE_PWM_VALUE, 255) == ERROR)
       {
          tones.Play(A(3), 50);
          tones.Play(A(2), 50);
       }
+      //else
+      //{
+         //tones.Play(E(3), 50);
+      //}
+
+      if(SWITCH_STATES == REBOOT_SYSTEM_KEY_MASK)
+      {
+         if(RebootToggle.isActive() == false)
+         {
+            RebootToggle.Init(t1.millis() + RebootToggle.Step());
+            RebootToggle.Active(true);
+         }
+         SWITCH_PAST_STATE = REBOOT_SYSTEM_KEY_MASK;
+      }
+      else if(SWITCH_STATES == SHUTDOWN_PI_KEY_MASK)
+      {
+         if(PowerToggle.isActive() == false)
+         {
+            PowerToggle.Init(t1.millis() + PowerToggle.Step());
+            PowerToggle.Active(true);
+         }
+         SWITCH_PAST_STATE = SHUTDOWN_PI_KEY_MASK;
+      }
+      else if(PowerToggle.isActive() == true)
+      {
+         // Releasing the keys prematurely requires deactivating the timeout.
+         PowerToggle.Active(false);
+         SWITCH_PAST_STATE = 0;
+      }
+      else if(RebootToggle.isActive() == true)
+      {
+         // Releasing the keys prematurely requires deactivating the timeout.
+         RebootToggle.Active(false);
+         SWITCH_PAST_STATE = 0;
+         PI_CLEAR_SSR(PI_EVENTS_REGISTER);
+      }
       else
       {
-         tones.Play(E(3), 200);
-      }
-
-      // Forward the switch states to the PI
-      if(twi.SendWord(PI_I2C_ADDRESS, PI_INPUT_REGISTER_H, switch_states) == ERROR)
-      {
-         tones.Play(G(1), 100);
-      }
-
-      if(change & _BV(SWITCH_MUTE))
-      {
-         //if(IS_PRESSED(switch_states, SWITCH_A))
-         //{
-            //T84_LED_STATES |= T84_GREEN_BIT_MASK;
-            //twi.SendByte(T84_I2C_SLAVE_ADDRESS, T84_REG_LED_STATE, T84_LED_STATES);
-         //}
-         //else
-         //{
-            //T84_LED_STATES &= ~T84_GREEN_BIT_MASK;
-            //twi.SendByte(T84_I2C_SLAVE_ADDRESS, T84_REG_LED_STATE, T84_LED_STATES);
-         //}
-         SWITCH_PAST_STATE ^= _BV(SWITCH_MUTE);
-      }
-      if(change & _BV(SWITCH_VOL_UP))
-      {
-         //if(IS_PRESSED(switch_states, SWITCH_A))
-         //{
-            //T84_LED_STATES |= T84_ORANGE_BIT_MASK;
-            //twi.SendByte(T84_I2C_SLAVE_ADDRESS, T84_REG_LED_STATE, T84_LED_STATES);
-         //}
-         //else
-         //{
-            //T84_LED_STATES &= ~T84_ORANGE_BIT_MASK;
-            //twi.SendByte(T84_I2C_SLAVE_ADDRESS, T84_REG_LED_STATE, T84_LED_STATES);
-         //}
-         SWITCH_PAST_STATE ^= _BV(SWITCH_VOL_UP);
-      }
-      if(change & _BV(SWITCH_VOL_DN))
-      {
-         SWITCH_PAST_STATE ^= _BV(SWITCH_VOL_DN);
-      }
-      if(change & _BV(SWITCH_A))
-      {
-         SWITCH_PAST_STATE ^= _BV(SWITCH_A);
-      }
-      if(change & _BV(SWITCH_B))
-      {
-         //IS_RELEASED(switch_states, SWITCH_B) ?
-            //twi.SendByte(T84_I2C_SLAVE_ADDRESS, T84_REG_SLEEP, 0xFF) :
-            //0;
-         SWITCH_PAST_STATE ^= _BV(SWITCH_B);
-      }
-      if(change & _BV(SWITCH_C))
-      {
-         //if(IS_PRESSED(switch_states, SWITCH_C))
-         //{
-            //T84_LED_STATES |= T84_RED_BIT_MASK;
-            //twi.SendByte(T84_I2C_SLAVE_ADDRESS, T84_REG_LED_STATE, T84_LED_STATES);
-         //}
-         //else
-         //{
-            //T84_LED_STATES &= ~T84_RED_BIT_MASK;
-            //twi.SendByte(T84_I2C_SLAVE_ADDRESS, T84_REG_LED_STATE, T84_LED_STATES);
-         //}
-         SWITCH_PAST_STATE ^= _BV(SWITCH_C);
-      }
-      if(change & _BV(SWITCH_ZONE))
-      {
-         SWITCH_PAST_STATE ^= _BV(SWITCH_ZONE);
-      }
-      if(change & _BV(SWITCH_BACK))
-      {
-         SWITCH_PAST_STATE ^= _BV(SWITCH_BACK);
-      }
-      if(change & _BV(SWITCH_MUSIC))
-      {
-         SWITCH_PAST_STATE ^= _BV(SWITCH_MUSIC);
-      }
-      if(change & _BV(SWITCH_ENTER))
-      {
-         SWITCH_PAST_STATE ^= _BV(SWITCH_ENTER);
-      }
-      if(change & _BV(SWITCH_REWIND))
-      {
-         //if(IS_RELEASED(switch_states, SWITCH_REWIND))
-         //{
-            //// Simulate a scroll -
-            //twi.SendByte(T84_I2C_SLAVE_ADDRESS, T84_REG_I2C_TEST, 110);
-         //}
-         SWITCH_PAST_STATE ^= _BV(SWITCH_REWIND);
-      }
-      if(change & _BV(SWITCH_PLAY_PAUSE))
-      {
-         SWITCH_PAST_STATE ^= _BV(SWITCH_PLAY_PAUSE);
-      }
-      if(change & _BV(SWITCH_FORWARD))
-      {
-         //if(IS_RELEASED(switch_states, SWITCH_FORWARD))
-         //{
-            //// Simulate a scroll +
-            //twi.SendByte(T84_I2C_SLAVE_ADDRESS, T84_REG_I2C_TEST, 150);
-         //}
-         SWITCH_PAST_STATE ^= _BV(SWITCH_FORWARD);
-      }
-      if(change & _BV(SWITCH_SCROLL_EVENT))
-      {
-         if(IS_PRESSED(switch_states, SWITCH_SCROLL_EVENT))
+         // Forward the switch states to the PI
+         if(twi.SendWord(PI_I2C_ADDRESS, PI_INPUT_REGISTER_H, switch_states) == ERROR)
          {
-            // Turn it off, only act on a falling edge
-            // of the interrupt.
-            //switch_states ^= _BV(SWITCH_SCROLL_EVENT);
-            // Call the T84 to get the event.
-            uint8_t c(128);
-            if(twi.ReceiveByte(T84_I2C_SLAVE_ADDRESS, T84_REG_SCROLL_CLICKS, c) == SUCCESS)
+            tones.Play(G(1), 100);
+         }
+
+         if(change & _BV(SWITCH_MUTE))
+         {
+            SWITCH_PAST_STATE ^= _BV(SWITCH_MUTE);
+         }
+         if(change & _BV(SWITCH_VOL_UP))
+         {
+            SWITCH_PAST_STATE ^= _BV(SWITCH_VOL_UP);
+         }
+         if(change & _BV(SWITCH_VOL_DN))
+         {
+            SWITCH_PAST_STATE ^= _BV(SWITCH_VOL_DN);
+         }
+         if(change & _BV(SWITCH_A))
+         {
+            SWITCH_PAST_STATE ^= _BV(SWITCH_A);
+         }
+         if(change & _BV(SWITCH_B))
+         {
+            SWITCH_PAST_STATE ^= _BV(SWITCH_B);
+         }
+         if(change & _BV(SWITCH_C))
+         {
+            SWITCH_PAST_STATE ^= _BV(SWITCH_C);
+         }
+         if(change & _BV(SWITCH_ZONE))
+         {
+            SWITCH_PAST_STATE ^= _BV(SWITCH_ZONE);
+         }
+         if(change & _BV(SWITCH_BACK))
+         {
+            SWITCH_PAST_STATE ^= _BV(SWITCH_BACK);
+         }
+         if(change & _BV(SWITCH_MUSIC))
+         {
+            SWITCH_PAST_STATE ^= _BV(SWITCH_MUSIC);
+         }
+         if(change & _BV(SWITCH_ENTER))
+         {
+            SWITCH_PAST_STATE ^= _BV(SWITCH_ENTER);
+         }
+         if(change & _BV(SWITCH_REWIND))
+         {
+            SWITCH_PAST_STATE ^= _BV(SWITCH_REWIND);
+         }
+         if(change & _BV(SWITCH_PLAY_PAUSE))
+         {
+            SWITCH_PAST_STATE ^= _BV(SWITCH_PLAY_PAUSE);
+         }
+         if(change & _BV(SWITCH_FORWARD))
+         {
+            SWITCH_PAST_STATE ^= _BV(SWITCH_FORWARD);
+         }
+         if(change & _BV(SWITCH_SCROLL_EVENT))
+         {
+            if(IS_PRESSED(switch_states, SWITCH_SCROLL_EVENT))
             {
-               int8_t d = c - 128;
-               // Forward click count to PI
-               twi.SendByte(PI_I2C_ADDRESS, PI_SCROLL_CLICKS_REGISTER, d);
-               if(d > 0)
+               // Turn it off, only act on a falling edge
+               // of the interrupt.
+               //switch_states ^= _BV(SWITCH_SCROLL_EVENT);
+               // Call the T84 to get the event.
+               uint8_t c(128);
+               if(twi.ReceiveByte(T84_I2C_SLAVE_ADDRESS, T84_REG_SCROLL_CLICKS, c) == SUCCESS)
                {
-                  tones.Play(F(4), 20);
-               }
-               else if(d < 0)
-               {
-                  tones.Play(C(4), 20);
+                  int8_t d = c - 128;
+                  // Forward click count to PI
+                  twi.SendByte(PI_I2C_ADDRESS, PI_SCROLL_CLICKS_REGISTER, d);
+                  if(d > 0)
+                  {
+                     tones.Play(F(4), 20);
+                  }
+                  else if(d < 0)
+                  {
+                     tones.Play(C(4), 20);
+                  }
                }
             }
+            SWITCH_PAST_STATE ^= _BV(SWITCH_SCROLL_EVENT);
          }
-         SWITCH_PAST_STATE ^= _BV(SWITCH_SCROLL_EVENT);
       }
+   }
+   else if(SWITCH_STATES == SHUTDOWN_PI_KEY_MASK)
+   {
+      PowerToggle.RunAt(t1.millis());
+   }
+   else if(SWITCH_STATES == REBOOT_SYSTEM_KEY_MASK)
+   {
+      RebootToggle.RunAt(t1.millis());
    }
 }
 
