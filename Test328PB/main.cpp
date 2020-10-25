@@ -193,7 +193,9 @@ void CheckChargerStatus()
    // OUT low and IN high -> Charger disconnected / no charging taking place.
    CH_STAT_OUT_DIR_OUT;
    CH_STAT_OUT_HIGH;
-   if(CH_STAT_IN_IS_LOW)// bit_is_clear(PIND, 4))
+   _delay_ms(5);
+   //if(CH_STAT_IN_IS_LOW)// bit_is_clear(PIND, 4))
+   if(bit_is_clear(PIND, 4))
    {
       if(chargeState != eCharging)
       {
@@ -207,7 +209,9 @@ void CheckChargerStatus()
    {
       CH_STAT_OUT_LOW;
       CH_STAT_OUT_DIR_IN;
-      if(CH_STAT_OUT_IS_HIGH)// bit_is_set(PIND, 4))
+      _delay_ms(5);
+      //if(CH_STAT_IN_IS_HIGH)// bit_is_set(PIND, 4))
+      if(bit_is_set(PIND, 4))
       {
          if(chargeState != eNotConnected)
          {
@@ -353,10 +357,10 @@ int main(void)
     /* Replace with your application code */
     //test.Active();
     //testPWM.Active();
-    testOrange.Active();
+    //testOrange.Active();
     batteryCheck.Active();
     //o3001.Active();
-    //charger.Active();
+    charger.Active();
     //scanI2C.Active();
 
     //tones.Test();

@@ -30,10 +30,14 @@ uint16_t SWITCH_STATES = 0;
 void PiPowerToggleHandler();
 #define SHUTDOWN_PI_KEY_MASK ((1 << SWITCH_MUTE) | (1 << SWITCH_ZONE))
 Timeout PowerToggle(0, 5000, PiPowerToggleHandler);
+uint8_t shutdown_stage = 0;
 
 void PiRebootToggleHandler();
 #define REBOOT_SYSTEM_KEY_MASK ((1 << SWITCH_MUTE) | (1 << SWITCH_MUSIC))
 Timeout RebootToggle(0, 5000, PiRebootToggleHandler);
+uint8_t reboot_stage = 0;
+
+// TODO: Implement soft-shutdown and app restart key combos
 
 // default constructor
 PCInterrupts::PCInterrupts()
@@ -227,31 +231,63 @@ ISR(PCINT3_vect)
 
 void PiPowerToggleHandler()
 {
-   if(PI_PWR_SW_IS_HIGH)
+   if(shutdown_stage == 1)
    {
-      // Turn it off
-      PI_PWR_SW_LOW;
-      tones.Play(F(5), 100);
-      tones.Play(F(3), 100);
+      if(PI_PWR_SW_IS_LOW)
+      {
+         // Turn it on
+         PI_PWR_SW_HIGH;
+         tones.Play(F(3), 100);
+         tones.Play(F(5), 100);
+         shutdown_stage = 0;
+         PowerToggle.Active(false);
+      }
+      else
+      {
+         // Order soft shutdown
+         PI_SET_SHUTDOWN(PI_EVENTS_REGISTER);
+         twi.SendByte(PI_I2C_ADDRESS, PI_EVENT_REGISTER, PI_EVENTS_REGISTER);
+         tones.Play(F(5), 100);
+         tones.Play(F(3), 100);
+         shutdown_stage = 2;
+      }
    }
-   else
+   else if(shutdown_stage == 2)
    {
-      // Turn it on
-      PI_PWR_SW_HIGH;
-      tones.Play(F(3), 100);
-      tones.Play(F(5), 100);
+      // Cut the power
+      if(PI_PWR_SW_IS_HIGH)
+      {
+         // Turn it off
+         PI_PWR_SW_LOW;
+         tones.Play(F(5), 100);
+         tones.Play(F(3), 100);
+         tones.Play(F(2), 100);
+         shutdown_stage = 0;
+      }
+      PowerToggle.Active(false);
    }
-   PowerToggle.Active(false);
 }
 
 void PiRebootToggleHandler()
 {
-   PI_SET_REBOOT(PI_EVENTS_REGISTER);
-   twi.SendByte(PI_I2C_ADDRESS, PI_EVENT_REGISTER, PI_EVENTS_REGISTER);
-   tones.Play(F(3), 100);
-   tones.Play(F(5), 100);
-   tones.Play(F(3), 100);
-   RebootToggle.Active(false);
+   if(reboot_stage == 1)
+   {
+      // Restart the application.
+      PI_SET_RESTART_APP(PI_EVENTS_REGISTER);
+      twi.SendByte(PI_I2C_ADDRESS, PI_EVENT_REGISTER, PI_EVENTS_REGISTER);
+      tones.Play(F(5), 100);
+      tones.Play(F(3), 100);
+      reboot_stage = 2;
+   }
+   else if(reboot_stage == 2)
+   {
+      PI_SET_REBOOT(PI_EVENTS_REGISTER);
+      twi.SendByte(PI_I2C_ADDRESS, PI_EVENT_REGISTER, PI_EVENTS_REGISTER);
+      tones.Play(F(3), 100);
+      tones.Play(F(5), 100);
+      tones.Play(F(3), 100);
+      RebootToggle.Active(false);
+   }
 }
 
 void PCInterrupts::CheckSwitchStates()
@@ -280,19 +316,21 @@ void PCInterrupts::CheckSwitchStates()
 
       if(SWITCH_STATES == REBOOT_SYSTEM_KEY_MASK)
       {
-         if(RebootToggle.isActive() == false)
+         if(RebootToggle.isActive() == false && reboot_stage == 0)
          {
             RebootToggle.Init(t1.millis() + RebootToggle.Step());
             RebootToggle.Active(true);
+            reboot_stage = 1;
          }
          SWITCH_PAST_STATE = REBOOT_SYSTEM_KEY_MASK;
       }
       else if(SWITCH_STATES == SHUTDOWN_PI_KEY_MASK)
       {
-         if(PowerToggle.isActive() == false)
+         if(PowerToggle.isActive() == false && shutdown_stage == 0)
          {
             PowerToggle.Init(t1.millis() + PowerToggle.Step());
             PowerToggle.Active(true);
+            shutdown_stage = 1;
          }
          SWITCH_PAST_STATE = SHUTDOWN_PI_KEY_MASK;
       }
@@ -300,12 +338,15 @@ void PCInterrupts::CheckSwitchStates()
       {
          // Releasing the keys prematurely requires deactivating the timeout.
          PowerToggle.Active(false);
+         shutdown_stage = 0;
          SWITCH_PAST_STATE = 0;
+         PI_CLEAR_SSR(PI_EVENTS_REGISTER);
       }
       else if(RebootToggle.isActive() == true)
       {
          // Releasing the keys prematurely requires deactivating the timeout.
          RebootToggle.Active(false);
+         reboot_stage = 0;
          SWITCH_PAST_STATE = 0;
          PI_CLEAR_SSR(PI_EVENTS_REGISTER);
       }
