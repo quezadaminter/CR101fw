@@ -19,6 +19,14 @@ class Timeout
 
       bool isActive() const;
       void Active(bool a = true);
+      
+      /*
+       * Reset the reference timeout point.
+       */
+      void Init(uint32_t tk);
+
+      uint16_t Step() const;
+
       /*
        * Runs at a specific time and
        * then moves the next run point

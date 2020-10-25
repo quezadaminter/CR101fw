@@ -37,6 +37,8 @@ void PiRebootToggleHandler();
 Timeout RebootToggle(0, 5000, PiRebootToggleHandler);
 uint8_t reboot_stage = 0;
 
+#define KEY_COMBO_SET(reg, mask) ((reg & mask) == mask)
+
 // TODO: Implement soft-shutdown and app restart key combos
 
 // default constructor
@@ -188,14 +190,14 @@ ISR(PCINT2_vect)
       //{
          //SWITCH_STATES &= ~(_BV(SWITCH_SCROLL_EVENT));
       //}
-      if(SCROLL_INT_IS_HIGH)
+      if(SCROLL_INT_IS_LOW)
       {
          SWITCH_STATES |= _BV(SWITCH_SCROLL_EVENT);
       }
-      else
-      {
-         SWITCH_STATES &= ~(_BV(SWITCH_SCROLL_EVENT));
-      }
+      //else
+      //{
+         //SWITCH_STATES &= ~(_BV(SWITCH_SCROLL_EVENT));
+      //}
    }
    else if(changedbits & SW_FORWARDbm)
    {
@@ -287,6 +289,7 @@ void PiRebootToggleHandler()
       tones.Play(F(5), 100);
       tones.Play(F(3), 100);
       RebootToggle.Active(false);
+      reboot_stage = 0;
    }
 }
 
@@ -314,7 +317,8 @@ void PCInterrupts::CheckSwitchStates()
          //tones.Play(E(3), 50);
       //}
 
-      if(SWITCH_STATES == REBOOT_SYSTEM_KEY_MASK)
+      //if(SWITCH_STATES == REBOOT_SYSTEM_KEY_MASK)
+      if(KEY_COMBO_SET(SWITCH_STATES, REBOOT_SYSTEM_KEY_MASK))
       {
          if(RebootToggle.isActive() == false && reboot_stage == 0)
          {
@@ -324,7 +328,8 @@ void PCInterrupts::CheckSwitchStates()
          }
          SWITCH_PAST_STATE = REBOOT_SYSTEM_KEY_MASK;
       }
-      else if(SWITCH_STATES == SHUTDOWN_PI_KEY_MASK)
+      //else if(SWITCH_STATES == SHUTDOWN_PI_KEY_MASK)
+      else if(KEY_COMBO_SET(SWITCH_STATES, SHUTDOWN_PI_KEY_MASK))
       {
          if(PowerToggle.isActive() == false && shutdown_stage == 0)
          {
@@ -352,12 +357,6 @@ void PCInterrupts::CheckSwitchStates()
       }
       else
       {
-         // Forward the switch states to the PI
-         if(twi.SendWord(PI_I2C_ADDRESS, PI_INPUT_REGISTER_H, switch_states) == ERROR)
-         {
-            tones.Play(G(1), 100);
-         }
-
          if(change & _BV(SWITCH_MUTE))
          {
             SWITCH_PAST_STATE ^= _BV(SWITCH_MUTE);
@@ -422,8 +421,8 @@ void PCInterrupts::CheckSwitchStates()
                if(twi.ReceiveByte(T84_I2C_SLAVE_ADDRESS, T84_REG_SCROLL_CLICKS, c) == SUCCESS)
                {
                   int8_t d = c - 128;
-                  // Forward click count to PI
-                  twi.SendByte(PI_I2C_ADDRESS, PI_SCROLL_CLICKS_REGISTER, d);
+                  // Forward click count to PI still as an unsigned value
+                  twi.SendByte(PI_I2C_ADDRESS, PI_SCROLL_CLICKS_REGISTER, c);
                   if(d > 0)
                   {
                      tones.Play(F(4), 20);
@@ -434,15 +433,24 @@ void PCInterrupts::CheckSwitchStates()
                   }
                }
             }
-            SWITCH_PAST_STATE ^= _BV(SWITCH_SCROLL_EVENT);
+            //SWITCH_PAST_STATE ^= _BV(SWITCH_SCROLL_EVENT);
+            SWITCH_STATES ^= _BV(SWITCH_SCROLL_EVENT);
+         }
+         else
+         {
+            // Forward the switch states to the PI except for the scroll event, that one is done above.
+            if(twi.SendWord(PI_I2C_ADDRESS, PI_INPUT_REGISTER_H, switch_states) == ERROR)
+            {
+               tones.Play(G(1), 100);
+            }
          }
       }
    }
-   else if(SWITCH_STATES == SHUTDOWN_PI_KEY_MASK)
+   else if(KEY_COMBO_SET(SWITCH_STATES, SHUTDOWN_PI_KEY_MASK))
    {
       PowerToggle.RunAt(t1.millis());
    }
-   else if(SWITCH_STATES == REBOOT_SYSTEM_KEY_MASK)
+   else if(KEY_COMBO_SET(SWITCH_STATES, REBOOT_SYSTEM_KEY_MASK))
    {
       RebootToggle.RunAt(t1.millis());
    }

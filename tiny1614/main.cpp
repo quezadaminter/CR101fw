@@ -17,6 +17,7 @@
 #include "Timer0.h"
 #include "Registers.h"
 #include "SonosScrollWheel.h"
+#include "Timeout.h"
 
 volatile uint8_t i2c_regs[T84_REG_RANGE] = { 0 };
 volatile uint8_t reg_position = 0;
@@ -29,12 +30,16 @@ volatile uint8_t messageReceived = 0;
 
 uint32_t now = 0;
 
+void ScrollWheelTimeoutHandler();
+Timeout swTO(0, 250, ScrollWheelTimeoutHandler);
+
+
 void SignalUpdate()
 {
-   // Let the master know there is data ready to be sent.
+   //// Let the master know there is data ready to be sent.
    SCROLLINT_ON;
    SCROLLINT_OFF;
-   //Serial.println("I");
+   ////Serial.println("I");
    _delay_us(100);
    SCROLLINT_ON;
 }
@@ -67,14 +72,14 @@ void UpdateRegisters()
          //}
 		break;
 		case(T84_REG_I2C_TEST):
-         if(i2c_regs[reg_position] > 128)
-         {
-			   i2c_regs[T84_REG_SCROLL_CLICKS] += 1;
-         }
-         else if(i2c_regs[reg_position] < 128)
-         {
-			   i2c_regs[T84_REG_SCROLL_CLICKS] -= 1;
-         }
+         //if(i2c_regs[reg_position] > 128)
+         //{
+			   //i2c_regs[T84_REG_SCROLL_CLICKS] += 1;
+         //}
+         //else if(i2c_regs[reg_position] < 128)
+         //{
+			   //i2c_regs[T84_REG_SCROLL_CLICKS] -= 1;
+         //}
 		break;
 		default:
 		break;
@@ -83,7 +88,7 @@ void UpdateRegisters()
 
 void onRequest()
 {
-   GREENLED_TOGGLE;
+   //GREENLED_TOGGLE;
    if(scroll_send != 0)// == T84_REG_SCROLL_CLICKS)
    {
       scroll_send = 0;
@@ -119,7 +124,7 @@ void onReceive(uint8_t data)
          scroll_send = 1;
       }
       //Serial.print("B:");Serial.println(reg_position);
-      if(data > 0 && reg_position < T84_REG_RANGE)
+      else if(data > 0 && reg_position < T84_REG_RANGE)
       {
          // Get the next byte and assign it to the
          // selected register.
@@ -173,8 +178,28 @@ void CheckWhiteLEDLevel(uint32_t now)
 		   }
 		}
 	}
-	
 }
+
+void ScrollWheelTimeoutHandler()
+{
+   int8_t steps = SW.Check();
+   if(steps != 0)
+   {
+      Serial.println(steps);
+      i2c_regs[T84_REG_SCROLL_CLICKS] += (steps > 0 ? 1 : -1);// 0x80;
+      if(i2c_regs[T84_REG_SCROLL_CLICKS] > 132)
+      {
+         i2c_regs[T84_REG_SCROLL_CLICKS] = 129;
+         SignalUpdate();
+      }
+      else if(i2c_regs[T84_REG_SCROLL_CLICKS] < 124)
+      {
+         i2c_regs[T84_REG_SCROLL_CLICKS] = 127;
+         SignalUpdate();
+      }
+   }
+}
+
 void InitializeClock()
 {
    // ccp_write_io((void*)&(CLKCTRL.OSC32KCTRLA),0 << CLKCTRL_RUNSTDBY_bp /* Run standby: disabled */);
@@ -219,6 +244,7 @@ void InitializeIO()
 
     // Restore the state when waking up.
    i2c_regs[T84_REG_SLEEP] = 0;
+   i2c_regs[T84_REG_SCROLL_CLICKS] = 0x80;
 
    InitializeClock();
 
@@ -228,9 +254,11 @@ void InitializeIO()
    WireS.setOnRequest(onRequest);
    WireS.begin(0x04);
 
-   //SW.begin();
+   SW.begin();
    pwm.begin();
    timer0.begin();
+
+   swTO.Active(true);
 
     sei();
 }
@@ -293,20 +321,22 @@ int main(void)
 
        // If there are clicks pending from the scroll wheel
        // then send them.
-		 if(i2c_regs[T84_REG_SCROLL_CLICKS] != 128)// && scroll_send == 0)
-       {
-			 for(uint8_t i = 0; i < 4; ++i)
-          {
-             REDLED_TOGGLE;
-             _delay_ms(10);
-          }
-          SignalUpdate();
-       }
-       else if(i2c_regs[T84_REG_SLEEP] != 0)
-       {
-          //Sleep();
+       //swTO.RunOn(now);
+       ScrollWheelTimeoutHandler();
+		 //if(i2c_regs[T84_REG_SCROLL_CLICKS] != 128)// && scroll_send == 0)
+       //{
+			 //for(uint8_t i = 0; i < 4; ++i)
+          //{
+             //REDLED_TOGGLE;
+             //_delay_ms(10);
+          //}
           //SignalUpdate();
-       }
+       //}
+       //else if(i2c_regs[T84_REG_SLEEP] != 0)
+       //{
+          ////Sleep();
+          ////SignalUpdate();
+       //}
        //if(now % 1000 == 0)
        //{
           //if(now > s)
