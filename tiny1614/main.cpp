@@ -25,13 +25,12 @@ volatile uint8_t scroll_send = 0;
 uint8_t reg_size = sizeof(i2c_regs);
 
 volatile uint32_t whiteLEDHold = 0;
-
-volatile uint8_t messageReceived = 0;
+volatile uint8_t resetReceived = 0;
 
 uint32_t now = 0;
 
 void ScrollWheelTimeoutHandler();
-Timeout swTO(0, 250, ScrollWheelTimeoutHandler);
+Timeout swTO(0, 30, ScrollWheelTimeoutHandler);
 
 
 void SignalUpdate()
@@ -71,6 +70,9 @@ void UpdateRegisters()
 			   //SignalUpdate();
          //}
 		break;
+      case(T84_REG_RESET):
+         resetReceived = 1;
+      break;
 		case(T84_REG_I2C_TEST):
          //if(i2c_regs[reg_position] > 128)
          //{
@@ -185,7 +187,7 @@ void ScrollWheelTimeoutHandler()
    int8_t steps = SW.Check();
    if(steps != 0)
    {
-      Serial.println(steps);
+      //Serial.println(steps);
       i2c_regs[T84_REG_SCROLL_CLICKS] += (steps > 0 ? 1 : -1);// 0x80;
       if(i2c_regs[T84_REG_SCROLL_CLICKS] > 132)
       {
@@ -234,6 +236,7 @@ ISR(PORTA_PORT_vect)
 
 void InitializeIO()
 {
+   resetReceived = 0;
    // Initialize IO
     PORTA.DIRSET = REDLEDbm | GREENLEDbm;
     PORTB.DIRSET |= ORANGELEDbm;
@@ -244,6 +247,7 @@ void InitializeIO()
 
     // Restore the state when waking up.
    i2c_regs[T84_REG_SLEEP] = 0;
+   i2c_regs[T84_REG_RESET] = 0;
    i2c_regs[T84_REG_SCROLL_CLICKS] = 0x80;
 
    InitializeClock();
@@ -319,10 +323,6 @@ int main(void)
     {
        now = timer0.millis();
 
-       // If there are clicks pending from the scroll wheel
-       // then send them.
-       //swTO.RunOn(now);
-       ScrollWheelTimeoutHandler();
 		 //if(i2c_regs[T84_REG_SCROLL_CLICKS] != 128)// && scroll_send == 0)
        //{
 			 //for(uint8_t i = 0; i < 4; ++i)
@@ -370,10 +370,26 @@ int main(void)
              //}
           //}
        //}
+
+
+       swTO.RunOn(now);
        CheckWhiteLEDLevel(now);
-       //SW.Check();
+
        // Push the bits out the door.
        //Serial.send();
+       if(resetReceived > 0)
+       {
+          pwm.Stop();
+			 for(uint8_t i = 0; i < 10; ++i)
+          {
+             REDLED_TOGGLE;
+             GREENLED_TOGGLE;
+             ORANGELED_TOGGLE;
+             LEDPWM_TOGGLE;
+             _delay_ms(10);
+          }
+          RSTCTRL.SWRR = RSTCTRL_SWRE_bm;
+       }
     }
 }
 

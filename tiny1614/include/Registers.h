@@ -20,6 +20,7 @@ typedef enum
 	T84_REG_SCROLL_CLICKS,
 	T84_REG_SLEEP,
 	T84_REG_I2C_TEST,
+   T84_REG_RESET,
 	T84_REG_RANGE
 } Registers;
 
@@ -36,8 +37,9 @@ typedef enum
 #define REG_IDbm (1 << T84_REG_ID)
 #define REG_SYSTEMbm (1 << T84_REG_SYSTEM)
 #define REG_LED_STATEbm (1 << T84_REG_LED_STATE)
-#define REG_WHITE_PWMbm (1 << T84_REG_WHITE_PWM)
+#define REG_WHITE_PWMbm (1 << T84_REG_WHITE_PWM_VALUE)
 #define REG_SCROLL_CLICKSbm (1 << T84_REG_SCROLL_CLICKS)
 #define REG_SLEEPbm (1 << T84_REG_SLEEP)
-#define REG_I2C_TESTbm (1 << T84_REG_SLEEP)
+#define REG_RESETbm (1 << T84_REG_RESET)
+#define REG_I2C_TESTbm (1 << T84_REG_I2C_TEST)
 #endif /* REGISTERS_H_ */

@@ -24,6 +24,8 @@
 #define A(o)  9,o
 #define AS(o) 10,o
 #define B(o)  11,o
+#define SILENCE  12
+#define S(o) SILENCE,o
 
 class Tones
 {

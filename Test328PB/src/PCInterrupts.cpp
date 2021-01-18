@@ -8,6 +8,7 @@
 #include <avr/io.h>
 #include <util/atomic.h>
 #include <util/delay.h>
+#include <avr/wdt.h>
 #include "PCInterrupts.h"
 #include "Tones.h"
 #include "TWI.h"
@@ -36,6 +37,11 @@ void PiRebootToggleHandler();
 #define REBOOT_SYSTEM_KEY_MASK ((1 << SWITCH_MUTE) | (1 << SWITCH_MUSIC))
 Timeout RebootToggle(0, 5000, PiRebootToggleHandler);
 uint8_t reboot_stage = 0;
+
+void MCURebootToggleHandler();
+#define REBOOT_MCU_KEY_MASK ((1 << SWITCH_MUTE) | (1 << SWITCH_BACK))
+Timeout MCURebootToggle(0, 5000, MCURebootToggleHandler);
+uint8_t mcu_reboot_stage = 0;
 
 #define KEY_COMBO_SET(reg, mask) ((reg & mask) == mask)
 
@@ -265,6 +271,8 @@ void PiPowerToggleHandler()
          tones.Play(F(3), 100);
          tones.Play(F(2), 100);
          shutdown_stage = 0;
+         _delay_ms(2500);
+         MCURebootToggleHandler();
       }
       PowerToggle.Active(false);
    }
@@ -290,10 +298,30 @@ void PiRebootToggleHandler()
       tones.Play(F(3), 100);
       RebootToggle.Active(false);
       reboot_stage = 0;
+      _delay_ms(2500);
+      MCURebootToggleHandler();
    }
 }
 
-void PCInterrupts::CheckSwitchStates()
+void MCURebootToggleHandler()
+{
+   tones.PlayBlock(A(4), 100);
+   tones.PlayBlock(E(4), 100);
+   tones.PlayBlock(S(4), 5);
+   tones.PlayBlock(E(4), 100);
+   tones.PlayBlock(FS(4), 100);
+   tones.PlayBlock(E(4), 200);
+   tones.PlayBlock(GS(4), 100);
+   tones.PlayBlock(A(4), 100);
+   // Reboot the slave mcu.
+   twi.SendByte(T84_I2C_SLAVE_ADDRESS, T84_REG_RESET, 1);
+   // Reboot this mcu.
+   wdt_reset();
+   wdt_enable(WDTO_250MS);
+   while(1){}
+}
+
+void PCInterrupts::CheckSwitchStates(uint32_t now)
 {
    uint16_t switch_states = 0;
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
@@ -304,7 +332,7 @@ void PCInterrupts::CheckSwitchStates()
 
    if(change)
    {
-      LAST_EVENT_TIME = t1.millis();
+      LAST_EVENT_TIME = now;
 
       // Play a tone to signal success or failure.
       if(twi.SendByte(T84_I2C_SLAVE_ADDRESS, T84_REG_WHITE_PWM_VALUE, 255) == ERROR)
@@ -317,25 +345,33 @@ void PCInterrupts::CheckSwitchStates()
          //tones.Play(E(3), 50);
       //}
 
-      //if(SWITCH_STATES == REBOOT_SYSTEM_KEY_MASK)
       if(KEY_COMBO_SET(SWITCH_STATES, REBOOT_SYSTEM_KEY_MASK))
       {
          if(RebootToggle.isActive() == false && reboot_stage == 0)
          {
-            RebootToggle.Init(t1.millis() + RebootToggle.Step());
+            RebootToggle.Init(now + RebootToggle.Step());
             RebootToggle.Active(true);
             reboot_stage = 1;
          }
          SWITCH_PAST_STATE = REBOOT_SYSTEM_KEY_MASK;
       }
-      //else if(SWITCH_STATES == SHUTDOWN_PI_KEY_MASK)
       else if(KEY_COMBO_SET(SWITCH_STATES, SHUTDOWN_PI_KEY_MASK))
       {
          if(PowerToggle.isActive() == false && shutdown_stage == 0)
          {
-            PowerToggle.Init(t1.millis() + PowerToggle.Step());
+            PowerToggle.Init(now + PowerToggle.Step());
             PowerToggle.Active(true);
             shutdown_stage = 1;
+         }
+         SWITCH_PAST_STATE = SHUTDOWN_PI_KEY_MASK;
+      }
+      else if(KEY_COMBO_SET(SWITCH_STATES, REBOOT_MCU_KEY_MASK))
+      {
+         if(MCURebootToggle.isActive() == false && mcu_reboot_stage == 0)
+         {
+            MCURebootToggle.Init(now + MCURebootToggle.Step());
+            MCURebootToggle.Active(true);
+            mcu_reboot_stage = 1;
          }
          SWITCH_PAST_STATE = SHUTDOWN_PI_KEY_MASK;
       }
@@ -354,6 +390,13 @@ void PCInterrupts::CheckSwitchStates()
          reboot_stage = 0;
          SWITCH_PAST_STATE = 0;
          PI_CLEAR_SSR(PI_EVENTS_REGISTER);
+      }
+      else if(MCURebootToggle.isActive() == true)
+      {
+         // Releasing the keys prematurely requires deactivating the timeout.
+         MCURebootToggle.Active(false);
+         mcu_reboot_stage = 0;
+         SWITCH_PAST_STATE = 0;
       }
       else
       {
@@ -448,11 +491,15 @@ void PCInterrupts::CheckSwitchStates()
    }
    else if(KEY_COMBO_SET(SWITCH_STATES, SHUTDOWN_PI_KEY_MASK))
    {
-      PowerToggle.RunAt(t1.millis());
+      PowerToggle.RunAt(now);
    }
    else if(KEY_COMBO_SET(SWITCH_STATES, REBOOT_SYSTEM_KEY_MASK))
    {
-      RebootToggle.RunAt(t1.millis());
+      RebootToggle.RunAt(now);
+   }
+   else if(KEY_COMBO_SET(SWITCH_STATES, REBOOT_MCU_KEY_MASK))
+   {
+      MCURebootToggle.RunAt(now);
    }
 }
 

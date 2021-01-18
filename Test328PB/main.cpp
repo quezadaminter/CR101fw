@@ -348,6 +348,7 @@ Timeout batteryCheck(0, 6000, CheckBatteryLevel);
 Timeout scanI2C(0, 5000, ScanI2C);
 Timeout o3001(0, 4000, CheckOPT3001);
 
+uint32_t le = 0;
 int main(void)
 {
    // Set the proper state for the pins
@@ -373,7 +374,7 @@ int main(void)
       now = t1.millis();
 
       // Code that executes every frame.
-      ints.CheckSwitchStates();
+      ints.CheckSwitchStates(now);
 
       // Code that runs on a schedule.
       test.RunOn(now);
@@ -385,7 +386,8 @@ int main(void)
       //o3001.RunOn(now);
 
       scanI2C.RunOn(now);
-      if(now - ints.LastEventTime() > SLEEP_TIMEOUT)
+      le = ints.LastEventTime();
+      if(now - le > SLEEP_TIMEOUT)//ints.LastEventTime() > SLEEP_TIMEOUT)
       {
          if(now - ints.LastEventTime() > DEEP_SLEEP_TIMEOUT)
          {

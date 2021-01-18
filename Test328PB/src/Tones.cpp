@@ -212,11 +212,16 @@ void Tones::PlayBlock(uint8_t note, uint8_t octave, uint32_t hold)
       Delay(hold);
       Stop();
    }
+   else if(note == SILENCE)
+   {
+      // Silence
+      Delay(hold);
+   }
 }
 
 void Tones::Play(uint8_t note, uint8_t octave, uint32_t hold)
 {
-   if(octave < 8 && note < 12)
+   if(octave < 8 && note < 13)
    {
 	   noteQueue.enqueue(queuedNote(note, octave, hold));
    }
@@ -225,16 +230,19 @@ void Tones::Play(uint8_t note, uint8_t octave, uint32_t hold)
 void Tones::PlayNext()
 {
    queuedNote x = noteQueue.dequeue();
-	note_t val;
-	if (x.length > 0)
-	{
-		uint16_t address = ((unsigned int)&octaves + sizeof(octave_t) * x.octave + sizeof(note_t) * x.note);
-      eeprom_read_block(&val, (uint8_t *)address, sizeof(note_t));
-      TCCR0A |= (1 << COM0A0); // Connect OC0A
-		TCCR0B = (TCCR0B & ~((1<<CS02)|(1<<CS01)|(1<<CS00))) | val.N;
-		OCR0A = val.OCRxn - 1; // set the OCRnx
-		tonePlaying = true;
-		noteEnd = t1.millis() + x.length;
+   note_t val;
+   if (x.length > 0)
+   {
+      if(x.note != SILENCE)
+      {
+         uint16_t address = ((unsigned int)&octaves + sizeof(octave_t) * x.octave + sizeof(note_t) * x.note);
+         eeprom_read_block(&val, (uint8_t *)address, sizeof(note_t));
+         TCCR0A |= (1 << COM0A0); // Connect OC0A
+         TCCR0B = (TCCR0B & ~((1<<CS02)|(1<<CS01)|(1<<CS00))) | val.N;
+         OCR0A = val.OCRxn - 1; // set the OCRnx
+      }
+      tonePlaying = true;
+      noteEnd = t1.millis() + x.length;
    }
 }
 

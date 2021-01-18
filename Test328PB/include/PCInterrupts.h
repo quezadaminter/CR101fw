@@ -20,7 +20,7 @@ class PCInterrupts
       ~PCInterrupts();
 
       void Init();
-      void CheckSwitchStates();
+      void CheckSwitchStates(uint32_t now);
       void Sleep();
 
       uint32_t LastEventTime() const { return(LAST_EVENT_TIME); }
